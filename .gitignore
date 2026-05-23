@@ -12,3 +12,6 @@ Thumbs.db
 
 # Tooling
 .playwright-mcp/
+
+# Audio download/working dir (alternates pool, not shipped)
+tools/audio-source/

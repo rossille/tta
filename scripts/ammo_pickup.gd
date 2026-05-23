@@ -94,4 +94,8 @@ func _process(delta: float) -> void:
 			_collect_t = 0.0
 			_collect_start = global_position
 			_collect_tank = body
+			# Tank knows whether it's the local player — defer the is_own boost
+			# to that check so the player collecting feels rewarded.
+			var is_own: bool = body.has_method("_is_local_player") and body._is_local_player()
+			Audio.play_sfx_2d("pickup_ammo", global_position, { "is_own": is_own })
 			return

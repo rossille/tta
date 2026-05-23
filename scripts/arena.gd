@@ -65,6 +65,7 @@ const ARENA_H       := 720.0
 # ---------------------------------------------------------------------------
 func _ready() -> void:
 	Cursor.hide_cursor()
+	Audio.play_music("arena", 1.5)
 	if Net.is_active():
 		if Net.is_host():
 			print("[ARENA] Host ready. player_info: ", Net.player_info)
@@ -74,6 +75,29 @@ func _ready() -> void:
 			_rpc_peer_ready.rpc_id(1)
 	else:
 		_spawn_solo()
+
+
+# Find the tank owned by this peer (the human player on this machine).
+# Returns null if none found (all-AI match, or before spawn finishes).
+func _find_local_player_tank() -> Node:
+	for t in _tanks:
+		if not is_instance_valid(t):
+			continue
+		if t.control_mode != t.ControlMode.PLAYER:
+			continue
+		if Net.is_active():
+			if t.is_multiplayer_authority():
+				return t
+		else:
+			if t.player_index == 0:
+				return t
+	return null
+
+
+func _attach_audio_listener() -> void:
+	var local := _find_local_player_tank()
+	if local != null:
+		Audio.set_listener(local)
 
 
 # ---------------------------------------------------------------------------
@@ -102,6 +126,8 @@ func _spawn_solo() -> void:
 	_alive = _tanks.size()
 	_connect_death_signals()
 	_spawn_all_pickups()
+	_attach_audio_listener()
+	Audio.play_sfx("match_go")
 
 
 # ---------------------------------------------------------------------------
@@ -301,6 +327,10 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 		_connect_death_signals()
 		_spawn_all_pickups()
 
+	# Every peer attaches its own listener to its own player tank.
+	_attach_audio_listener()
+	Audio.play_sfx("match_go")
+
 
 # ---------------------------------------------------------------------------
 # Ammo pickup management (host only)
@@ -435,6 +465,11 @@ func _physics_process(delta: float) -> void:
 			a.take_damage(dmg)
 			b.take_damage(dmg)
 			_ram_cooldowns[pair_key] = TankConfig.RAM_COOLDOWN
+			# Heavy metal crash at the contact midpoint. Host triggers it
+			# (this whole block runs host-only) and replicates via RPC so
+			# every peer hears it.
+			var midpoint := (a.global_position + b.global_position) * 0.5
+			_rpc_ram_impact.rpc(midpoint)
 
 
 # ---------------------------------------------------------------------------
@@ -551,6 +586,7 @@ func _check_win() -> void:
 		_rpc_show_winner.rpc(winner_name)
 	else:
 		_hud.show_winner(winner_name)
+		_play_outcome_sting(winner_name)
 
 
 func _on_continued(winner_tank: Node) -> void:
@@ -562,3 +598,28 @@ func _on_continued(winner_tank: Node) -> void:
 @rpc("authority", "call_local", "reliable")
 func _rpc_show_winner(winner_name: String) -> void:
 	_hud.show_winner(winner_name)
+	_play_outcome_sting(winner_name)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_ram_impact(world_pos: Vector2) -> void:
+	Audio.play_sfx_2d("ram_impact", world_pos, { "volume_db": 1.0 })
+
+
+# Plays victory or defeat based on whether the local player won.
+func _play_outcome_sting(winner_name: String) -> void:
+	var won := _local_player_won(winner_name)
+	# Music ducks under the sting
+	Audio.stop_music(0.4)
+	if won:
+		Audio.play_sfx("victory")
+	else:
+		Audio.play_sfx("defeat")
+
+
+func _local_player_won(winner_name: String) -> bool:
+	if Net.is_active():
+		var my_name: String = Net.player_info.get(Net.my_id(), {}).get("name", "")
+		return my_name != "" and winner_name == my_name
+	# Solo: the human player is always Player 1
+	return winner_name == "Player 1"

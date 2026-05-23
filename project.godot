@@ -28,6 +28,7 @@ WindowManager="*res://scripts/window_manager.gd"
 Net="*res://scripts/net.gd"
 LanDiscovery="*res://scripts/lan_discovery.gd"
 Cursor="*res://scripts/cursor.gd"
+Audio="*res://scripts/audio.gd"
 
 [display]
 

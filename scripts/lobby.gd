@@ -50,6 +50,7 @@ var ICON_AI:     Texture2D
 # ---------------------------------------------------------------------------
 func _ready() -> void:
 	Cursor.show_cursor()
+	Audio.play_music("lobby", 1.0)
 	ICON_PLAYER = load("res://assets/icon_player.png")
 	ICON_AI     = load("res://assets/icon_ai.png")
 
@@ -247,12 +248,15 @@ func _on_peer_disconnected(_id: int) -> void:
 # ---------------------------------------------------------------------------
 func _on_add_ai_pressed() -> void:
 	if _total_players() >= 4:
+		Audio.play_ui("error")
 		return
+	Audio.play_ui("click")
 	GameConfig.ai_list.append({ "difficulty": 1 })
 	_refresh_player_list()
 
 
 func _on_remove_ai_pressed(index: int) -> void:
+	Audio.play_ui("back")
 	if index < GameConfig.ai_list.size():
 		GameConfig.ai_list.remove_at(index)
 	_refresh_player_list()
@@ -267,9 +271,11 @@ func _on_ai_difficulty_changed(value: int, index: int) -> void:
 # Window / quit
 # ---------------------------------------------------------------------------
 func _on_window_btn_pressed() -> void:
+	Audio.play_ui("click")
 	WindowManager.toggle()
 
 func _on_quit_pressed() -> void:
+	Audio.play_ui("back")
 	get_tree().quit()
 
 
@@ -277,6 +283,7 @@ func _on_quit_pressed() -> void:
 # Join flow
 # ---------------------------------------------------------------------------
 func _on_join_pressed() -> void:
+	Audio.play_ui("click")
 	Net.disconnect_net()
 	LanDiscovery.stop_broadcast()
 	_show_panel(_panel_join)
@@ -322,6 +329,7 @@ func _games_list_clear() -> void:
 
 
 func _on_manual_join_pressed() -> void:
+	Audio.play_ui("confirm")
 	var ip := _manual_ip.text.strip_edges()
 	if ip == "":
 		ip = "127.0.0.1"
@@ -347,6 +355,7 @@ func _on_connection_failed() -> void:
 
 
 func _on_back_to_main_pressed() -> void:
+	Audio.play_ui("back")
 	Net.disconnect_net()
 	LanDiscovery.stop_listening()
 	_show_panel(_panel_main)
@@ -359,6 +368,7 @@ func _on_back_to_main_pressed() -> void:
 func _on_start_pressed() -> void:
 	if Net.is_active() and not Net.is_host():
 		return
+	Audio.play_ui("confirm")
 	LanDiscovery.stop_broadcast()
 	_load_arena.rpc()
 

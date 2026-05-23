@@ -18,34 +18,93 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -140.0
-offset_top = -100.0
-offset_right = 140.0
-offset_bottom = 100.0
+offset_left = -180.0
+offset_top = -180.0
+offset_right = 180.0
+offset_bottom = 180.0
 
 [node name="VBox" type="VBoxContainer" parent="Panel"]
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Panel/VBox"]
 text = "MENU"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 26
 
+[node name="VolumeSection" type="VBoxContainer" parent="Panel/VBox"]
+theme_override_constants/separation = 4
+
+[node name="VolumeTitle" type="Label" parent="Panel/VBox/VolumeSection"]
+text = "VOLUME"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 13
+
+[node name="MasterRow" type="HBoxContainer" parent="Panel/VBox/VolumeSection"]
+
+[node name="MasterLabel" type="Label" parent="Panel/VBox/VolumeSection/MasterRow"]
+custom_minimum_size = Vector2(80, 0)
+text = "Master"
+theme_override_font_sizes/font_size = 14
+
+[node name="MasterSlider" type="HSlider" parent="Panel/VBox/VolumeSection/MasterRow"]
+custom_minimum_size = Vector2(220, 0)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 1.0
+
+[node name="SfxRow" type="HBoxContainer" parent="Panel/VBox/VolumeSection"]
+
+[node name="SfxLabel" type="Label" parent="Panel/VBox/VolumeSection/SfxRow"]
+custom_minimum_size = Vector2(80, 0)
+text = "SFX"
+theme_override_font_sizes/font_size = 14
+
+[node name="SfxSlider" type="HSlider" parent="Panel/VBox/VolumeSection/SfxRow"]
+custom_minimum_size = Vector2(220, 0)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 1.0
+
+[node name="MusicRow" type="HBoxContainer" parent="Panel/VBox/VolumeSection"]
+
+[node name="MusicLabel" type="Label" parent="Panel/VBox/VolumeSection/MusicRow"]
+custom_minimum_size = Vector2(80, 0)
+text = "Music"
+theme_override_font_sizes/font_size = 14
+
+[node name="MusicSlider" type="HSlider" parent="Panel/VBox/VolumeSection/MusicRow"]
+custom_minimum_size = Vector2(220, 0)
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 1.0
+
+[node name="Spacer" type="Control" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 8)
+
 [node name="ResumeBtn" type="Button" parent="Panel/VBox"]
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 40)
 text = "Close menu"
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 17
 
 [node name="FullscreenBtn" type="Button" parent="Panel/VBox"]
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 40)
 text = "Fullscreen"
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 17
 
 [node name="QuitBtn" type="Button" parent="Panel/VBox"]
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 40)
 text = "Quit"
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 17
 
 [connection signal="pressed" from="Panel/VBox/ResumeBtn"     to="." method="_on_resume_pressed"]
 [connection signal="pressed" from="Panel/VBox/FullscreenBtn" to="." method="_on_fullscreen_pressed"]
 [connection signal="pressed" from="Panel/VBox/QuitBtn"       to="." method="_on_quit_pressed"]
+[connection signal="value_changed" from="Panel/VBox/VolumeSection/MasterRow/MasterSlider" to="." method="_on_master_changed"]
+[connection signal="value_changed" from="Panel/VBox/VolumeSection/SfxRow/SfxSlider"       to="." method="_on_sfx_changed"]
+[connection signal="value_changed" from="Panel/VBox/VolumeSection/MusicRow/MusicSlider"   to="." method="_on_music_changed"]

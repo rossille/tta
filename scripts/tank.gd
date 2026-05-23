@@ -106,7 +106,13 @@ const PIP_OFF:   Color  = Color(0.25, 0.25, 0.25, 1.0) # dark gray
 
 var _pip_rects: Array = []
 
-
+# ---------------------------------------------------------------------------
+# Audio
+# ---------------------------------------------------------------------------
+var _engine_player: AudioStreamPlayer2D
+var _tracks_player: AudioStreamPlayer2D
+var _audio_prev_pos: Vector2 = Vector2.ZERO
+var _audio_smooth_speed: float = 0.0   # estimated speed for remote-peer audio
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +124,24 @@ func _ready() -> void:
 	_build_pip_ui()
 	_update_hp_bar()
 	_update_ammo_pips()
+	_audio_prev_pos = global_position
+	_setup_audio_loops()
+
+
+func _setup_audio_loops() -> void:
+	# Engine and tracks are positional loops attached to the tank, so every
+	# peer hears every tank (attenuated by listener distance).
+	_engine_player = Audio.attach_loop_to(self, "engine_idle", {
+		"volume_db":   -22.0,
+		"pitch_scale": 0.9,
+		"max_distance": 1200.0,
+		"attenuation": 1.6,
+	})
+	_tracks_player = Audio.attach_loop_to(self, "tracks", {
+		"volume_db":   -60.0,   # silent until we actually move
+		"max_distance": 900.0,
+		"attenuation": 1.8,
+	})
 
 
 func _build_pip_ui() -> void:
@@ -149,11 +173,41 @@ func _process(delta: float) -> void:
 		)
 
 	_update_tracks(delta)
+	_update_audio_loops(delta)
 
 	# _dead is driven by the host and replicated via CombatSync; every peer
 	# applies the destroyed-tank visuals the first frame it observes the flag.
 	if _dead and not _death_applied:
 		_apply_death_visuals()
+
+
+func _update_audio_loops(delta: float) -> void:
+	# Estimate speed from observed position deltas. Works on every peer
+	# regardless of authority (the owning peer's _speed isn't replicated).
+	var d := global_position - _audio_prev_pos
+	_audio_prev_pos = global_position
+	var instant_speed := d.length() / max(delta, 0.0001)
+	# Smooth out network jitter and frame-to-frame noise
+	_audio_smooth_speed = lerp(_audio_smooth_speed, instant_speed, clamp(delta * 6.0, 0.0, 1.0))
+
+	if _dead:
+		if _engine_player and _engine_player.playing:
+			_engine_player.stop()
+		if _tracks_player and _tracks_player.playing:
+			_tracks_player.stop()
+		return
+
+	# Engine: quiet idle at -22 dB, ramps to -10 dB at full throttle.
+	# Pitch sweeps from 0.9 to 1.35 with speed for the classic rev feel.
+	var speed_norm := clamp(_audio_smooth_speed / max_forward_speed, 0.0, 1.0)
+	if _engine_player:
+		_engine_player.volume_db  = lerp(-22.0, -10.0, speed_norm)
+		_engine_player.pitch_scale = lerp(0.9, 1.35, speed_norm)
+
+	# Tracks: only audible when actually rolling.
+	if _tracks_player:
+		var target_db := -10.0 if _audio_smooth_speed > 18.0 else -60.0
+		_tracks_player.volume_db = move_toward(_tracks_player.volume_db, target_db, 60.0 * delta)
 
 
 # ---------------------------------------------------------------------------
@@ -212,7 +266,18 @@ func _sync_speed_after_slide() -> void:
 	# After move_and_slide() the engine may have removed the wall-normal component
 	# of velocity. Re-project back onto the tank's forward axis so _speed stays
 	# consistent — head-on hits kill speed, glancing hits reduce it proportionally.
+	var old_mag := abs(_speed)
 	_speed = velocity.dot(transform.x)
+	var lost := old_mag - abs(_speed)
+	# A significant speed drop while colliding with a wall = wall bump.
+	# Tank-tank ram impacts are handled in arena.gd (different sound).
+	if lost > 50.0 and get_slide_collision_count() > 0:
+		var col := get_slide_collision(0)
+		if col != null and col.get_collider() is StaticBody2D:
+			Audio.play_sfx_2d("wall_bump", global_position, {
+				"is_own": _is_local_player(),
+				"volume_db": -4.0,
+			})
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +296,7 @@ func _handle_firing(delta: float) -> void:
 
 	_fire_timer = fire_cooldown
 	_spawn_muzzle_flash()
+	Audio.play_sfx_2d("tank_fire", global_position, { "is_own": _is_local_player() })
 
 	if Net.is_active() and not Net.is_host():
 		_rpc_request_fire.rpc_id(1, global_position, transform.x, tank_id)
@@ -276,6 +342,11 @@ func take_damage(amount: float) -> void:
 		return
 	current_hp = max(0.0, current_hp - amount)
 	_update_hp_bar()
+	# Bullet-hit ping plays on the combat-authority peer; remote peers hear it
+	# via the death/visual replication path below for the explosion sound only.
+	Audio.play_sfx_2d("bullet_hit", global_position, {
+		"is_own": _is_local_player(),
+	})
 	if current_hp <= 0.0:
 		# Combat authority (host in multiplayer, local peer in solo) flips the
 		# replicated _dead flag and notifies the arena. The destroyed-tank
@@ -379,13 +450,34 @@ func _apply_death_visuals() -> void:
 	# via CombatSync). Pure presentation — no game-state mutation here.
 	_death_applied = true
 	set_physics_process(false)
-	set_process(false)
+	# Note: we don't disable _process anymore — _update_audio_loops needs to
+	# tick to silence the engine/tracks loops, which it does when `_dead`.
 	_hp_bar_node.visible = false
 	_barrel_sprite.visible = false
 	_body_sprite.texture = DESTROYED_TEXTURE
 	_body_sprite.scale = Vector2(0.041 / 0.6, 0.031 / 0.6)
 	_body_sprite.modulate = Color.WHITE   # clear any player colour tint
 	_spawn_wreck_fire()
+	# Big death boom — positional so spectators hear where it happened.
+	Audio.play_sfx_2d("explosion", global_position, {
+		"is_own": _is_local_player(),
+		"volume_db": 2.0,
+		"max_distance": 2400.0,
+	})
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+func _is_local_player() -> bool:
+	# Solo mode: the local player is whichever PLAYER-controlled tank exists
+	# at the player_index. With a single human player, that's player_index == 0.
+	if not Net.is_active():
+		return control_mode == ControlMode.PLAYER and player_index == 0
+	# Multiplayer: the local player is whoever owns the movement authority
+	# on this tank. AI tanks are host-owned but are not "the local player"
+	# for audio-boost purposes unless this peer is the host AND solo-host.
+	return control_mode == ControlMode.PLAYER and is_multiplayer_authority()
 
 
 func _spawn_wreck_fire() -> void:

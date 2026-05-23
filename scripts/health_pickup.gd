@@ -72,4 +72,6 @@ func _process(delta: float) -> void:
 			_collect_t = 0.0
 			_collect_start = global_position
 			_collect_tank = body
+			var is_own: bool = body.has_method("_is_local_player") and body._is_local_player()
+			Audio.play_sfx_2d("pickup_health", global_position, { "is_own": is_own })
 			return

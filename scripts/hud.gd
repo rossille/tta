@@ -27,6 +27,7 @@ func show_winner(winner_name: String) -> void:
 
 
 func _on_continue_pressed() -> void:
+	Audio.play_ui("back")
 	_panel.visible = false
 	# Back to watching gameplay — hide the cursor again.
 	Cursor.hide_cursor()
@@ -34,6 +35,7 @@ func _on_continue_pressed() -> void:
 
 
 func _on_rematch_pressed() -> void:
+	Audio.play_ui("confirm")
 	if Net.is_active():
 		_rpc_goto.rpc("res://scenes/main.tscn")
 	else:
@@ -41,6 +43,7 @@ func _on_rematch_pressed() -> void:
 
 
 func _on_lobby_pressed() -> void:
+	Audio.play_ui("click")
 	if Net.is_active():
 		_rpc_goto.rpc("res://scenes/lobby.tscn")
 	else:
@@ -48,6 +51,7 @@ func _on_lobby_pressed() -> void:
 
 
 func _on_quit_pressed() -> void:
+	Audio.play_ui("back")
 	get_tree().quit()
 
 
