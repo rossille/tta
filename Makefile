@@ -40,11 +40,27 @@ windows-debug: check-templates
 	$(GODOT) --path . --export-debug "Windows" $(DIST)/windows-debug/TankArena.exe
 	@echo "✓ Windows debug build: $(DIST)/windows-debug/TankArena.exe"
 
-## macOS .dmg
+## macOS .dmg — ad-hoc codesigned (no Apple Developer cert needed).
+##
+## Without any signature, recent macOS versions show "TankArena is damaged
+## and can't be opened" on first launch and refuse to run the app even via
+## right-click. Ad-hoc signing (the `-` identity) downgrades that to the
+## standard "developer cannot be verified" dialog, which users can clear
+## with one right-click → Open. No notarization, no $99 cert.
+##
+## Flow: export to .app → codesign → re-package into .dmg via hdiutil.
 macos: check-templates
 	@mkdir -p $(DIST)/macos
-	$(GODOT) --path . --export-release "macOS" $(DIST)/macos/TankArena.dmg
-	@echo "✓ macOS build: $(DIST)/macos/TankArena.dmg"
+	@rm -rf "$(DIST)/macos/TankArena.app" "$(DIST)/macos/TankArena.dmg"
+	$(GODOT) --path . --export-release "macOS" $(DIST)/macos/TankArena.app
+	@echo "→ Ad-hoc codesigning..."
+	codesign --force --deep --sign - "$(DIST)/macos/TankArena.app"
+	@codesign --verify --deep --strict "$(DIST)/macos/TankArena.app"
+	@echo "→ Packaging signed .app into .dmg..."
+	@hdiutil create -volname "TankArena" -srcfolder "$(DIST)/macos/TankArena.app" \
+		-ov -quiet -format UDZO "$(DIST)/macos/TankArena.dmg"
+	@rm -rf "$(DIST)/macos/TankArena.app"
+	@echo "✓ macOS build: $(DIST)/macos/TankArena.dmg (ad-hoc signed)"
 
 ## Linux x86_64 binary
 linux: check-templates
