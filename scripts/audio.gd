@@ -32,6 +32,7 @@ const _SETTINGS_PATH := "user://audio_settings.cfg"
 const SFX_PATHS := {
 	"tank_fire":      "res://assets/audio/sfx/tank_fire.mp3",
 	"bullet_hit":     "res://assets/audio/sfx/bullet_hit.ogg",
+	"bullet_explode": "res://assets/audio/sfx/bullet_explode.mp3",
 	"explosion":      "res://assets/audio/sfx/explosion.mp3",
 	"ram_impact":     "res://assets/audio/sfx/ram_impact.mp3",
 	"wall_bump":      "res://assets/audio/sfx/wall_bump.mp3",
@@ -85,6 +86,19 @@ func _ready() -> void:
 	add_child(_music_player)
 
 	_load_settings()
+
+
+# Drop all references on engine shutdown so Godot doesn't warn about the
+# cached AudioStream resources being "still in use at exit". Streams are
+# loaded lazily and pinned in _cache for the autoload's lifetime; without
+# this, exit logs end up with N leaked resources for the N streams played.
+func _exit_tree() -> void:
+	if _music_player and _music_player.playing:
+		_music_player.stop()
+	for child in get_children():
+		if child is AudioStreamPlayer or child is AudioStreamPlayer2D:
+			(child as Node).queue_free()
+	_cache.clear()
 
 
 # ---------------------------------------------------------------------------

@@ -125,6 +125,9 @@ func _explode() -> void:
 	explosion.set_script(EXPLOSION_SCENE)
 	explosion.global_position = global_position
 	get_parent().add_child.call_deferred(explosion)
+	# Small detonation sound for every bullet end-of-life — tank-hit ping
+	# (bullet_hit, played from tank.take_damage) layers on top when relevant.
+	Audio.play_sfx_2d("bullet_explode", global_position, { "volume_db": -3.0 })
 
 
 func _exit_tree() -> void:
