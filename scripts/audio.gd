@@ -90,15 +90,52 @@ func _ready() -> void:
 
 # Drop all references on engine shutdown so Godot doesn't warn about the
 # cached AudioStream resources being "still in use at exit". Streams are
-# loaded lazily and pinned in _cache for the autoload's lifetime; without
-# this, exit logs end up with N leaked resources for the N streams played.
+# loaded lazily and pinned in _cache for the autoload's lifetime, AND by
+# every AudioStreamPlayer/2D in the scene tree whose .stream points at a
+# cached stream (engine/tracks loops on each tank, in-flight one-shots
+# parented to current_scene).
+#
+# WM_CLOSE_REQUEST fires before tree teardown begins, which is the only
+# window where we can still walk the scene and null out stream refs. By
+# the time _exit_tree runs on this autoload, some scenes may already be
+# in indeterminate state.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_shutdown_audio()
+
+
 func _exit_tree() -> void:
-	if _music_player and _music_player.playing:
+	# Fallback for unusual exit paths (scene change quit, OS forced quit, etc.)
+	_shutdown_audio()
+
+
+func _shutdown_audio() -> void:
+	if _music_player != null:
 		_music_player.stop()
-	for child in get_children():
-		if child is AudioStreamPlayer or child is AudioStreamPlayer2D:
-			(child as Node).queue_free()
+		_music_player.stream = null
+
+	var tree := get_tree()
+	if tree != null and tree.root != null:
+		_null_audio_streams_recursive(tree.root)
+
 	_cache.clear()
+
+
+# Walks every node, stops AudioStreamPlayer* and clears its stream ref.
+# Stops the player to release AudioServer's internal hold, then nulls the
+# .stream so the cached resource's ref-count drops to zero once we clear
+# the cache. Both steps are required.
+func _null_audio_streams_recursive(node: Node) -> void:
+	if node is AudioStreamPlayer:
+		var p1: AudioStreamPlayer = node
+		p1.stop()
+		p1.stream = null
+	elif node is AudioStreamPlayer2D:
+		var p2: AudioStreamPlayer2D = node
+		p2.stop()
+		p2.stream = null
+	for child in node.get_children():
+		_null_audio_streams_recursive(child)
 
 
 # ---------------------------------------------------------------------------
