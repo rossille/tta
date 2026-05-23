@@ -12,20 +12,24 @@ the search by visiting the source URL in a browser.
 
 | File | Source | URL | License |
 |------|--------|-----|---------|
-| `sfx/tank_fire.mp3` | Freesound · GaryQ · "Tank fire Mixed" | https://freesound.org/people/GaryQ/sounds/127845/ | CC0 |
-| `sfx/bullet_hit.ogg` | Kenney · Impact Sounds · `impactMetal_heavy_000` | https://kenney.nl/assets/impact-sounds | CC0 |
-| `sfx/explosion.mp3` | Freesound · ProjectsU012 · "Alpha-11 Warhead Explosion" | https://freesound.org/people/ProjectsU012/sounds/568877/ | CC0 |
-| _(reused for `bullet_explode`)_ | same as `explosion.mp3`, played at lower volume + shorter range — see `audio.gd` and `bullet.gd` | | |
-| `sfx/ram_impact.mp3` | Freesound · "ANI Big Pipe Hit" | https://freesound.org/people/Q.K./sounds/244983/ | CC0 |
+| `sfx/tank_fire.wav` | Freesound · GaryQ · "Tank fire Mixed" | https://freesound.org/people/GaryQ/sounds/127845/ | CC0 |
+| `sfx/bullet_hit.wav` | Kenney · Impact Sounds · `impactMetal_heavy_000` | https://kenney.nl/assets/impact-sounds | CC0 |
+| `sfx/explosion.wav` | Freesound · ProjectsU012 · "Alpha-11 Warhead Explosion" | https://freesound.org/people/ProjectsU012/sounds/568877/ | CC0 |
+| _(reused for `bullet_explode`)_ | same as `explosion.wav`, played at lower volume + shorter range — see `audio.gd` and `bullet.gd` | | |
 | `sfx/engine_idle.mp3` | Freesound · "Engine, motor (loopable)" | https://freesound.org/people/leandros.ntounis/sounds/398675/ | CC0 |
 | `sfx/tracks.mp3` | Freesound · "tracks moving" | https://freesound.org/sounds/849062/ | CC0 |
-| `sfx/wall_bump.mp3` | Freesound · "Heavy Metal Thud on Ground" | https://freesound.org/sounds/640204/ | CC0 |
-| `sfx/pickup_ammo.ogg` | Kenney · Digital Audio · `powerUp8` | https://kenney.nl/assets/digital-audio | CC0 |
-| `sfx/pickup_health.ogg` | Kenney · Digital Audio · `threeTone2` | https://kenney.nl/assets/digital-audio | CC0 |
+| `sfx/pickup_ammo.wav` | Kenney · Digital Audio · `powerUp8` | https://kenney.nl/assets/digital-audio | CC0 |
+| `sfx/pickup_health.wav` | Kenney · Digital Audio · `threeTone2` | https://kenney.nl/assets/digital-audio | CC0 |
 | `sfx/countdown_beep.ogg` | Kenney · Digital Audio · `twoTone1` | https://kenney.nl/assets/digital-audio | CC0 |
-| `sfx/match_go.ogg` | Kenney · Digital Audio · `highUp` | https://kenney.nl/assets/digital-audio | CC0 |
+| `sfx/match_go.wav` | Kenney · Digital Audio · `highUp` | https://kenney.nl/assets/digital-audio | CC0 |
 | `sfx/victory.mp3` | Freesound · "Success Fanfare Trumpets" | https://freesound.org/sounds/456966/ | CC0 |
 | `sfx/defeat.mp3` | Freesound · "You failed (game jingle)" | https://freesound.org/sounds/626260/ | CC0 |
+
+Latency-critical SFX (fire, hit, explosion, pickups, match_go) were
+converted to 16-bit PCM WAV via macOS's built-in `afconvert`. WAV
+playback starts in ~5 ms vs ~50-100 ms for MP3/OGG, which the user
+could perceive as a "100-200 ms late" feel. Engine loops and music
+stay compressed since their start latency isn't reactive.
 
 ## UI
 

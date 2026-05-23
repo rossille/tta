@@ -267,18 +267,7 @@ func _sync_speed_after_slide() -> void:
 	# After move_and_slide() the engine may have removed the wall-normal component
 	# of velocity. Re-project back onto the tank's forward axis so _speed stays
 	# consistent — head-on hits kill speed, glancing hits reduce it proportionally.
-	var old_mag: float = absf(_speed)
 	_speed = velocity.dot(transform.x)
-	var lost: float = old_mag - absf(_speed)
-	# A significant speed drop while colliding with a wall = wall bump.
-	# Tank-tank ram impacts are handled in arena.gd (different sound).
-	if lost > 50.0 and get_slide_collision_count() > 0:
-		var col := get_slide_collision(0)
-		if col != null and col.get_collider() is StaticBody2D:
-			Audio.play_sfx_2d("wall_bump", global_position, {
-				"is_own": _is_local_player(),
-				"volume_db": -4.0,
-			})
 
 
 # ---------------------------------------------------------------------------

@@ -465,11 +465,6 @@ func _physics_process(delta: float) -> void:
 			a.take_damage(dmg)
 			b.take_damage(dmg)
 			_ram_cooldowns[pair_key] = TankConfig.RAM_COOLDOWN
-			# Heavy metal crash at the contact midpoint. Host triggers it
-			# (this whole block runs host-only) and replicates via RPC so
-			# every peer hears it.
-			var midpoint: Vector2 = (a.global_position + b.global_position) * 0.5
-			_rpc_ram_impact.rpc(midpoint)
 
 
 # ---------------------------------------------------------------------------
@@ -599,11 +594,6 @@ func _on_continued(winner_tank: Node) -> void:
 func _rpc_show_winner(winner_name: String) -> void:
 	_hud.show_winner(winner_name)
 	_play_outcome_sting(winner_name)
-
-
-@rpc("authority", "call_local", "reliable")
-func _rpc_ram_impact(world_pos: Vector2) -> void:
-	Audio.play_sfx_2d("ram_impact", world_pos, { "volume_db": 1.0 })
 
 
 # Plays victory or defeat based on whether the local player won.

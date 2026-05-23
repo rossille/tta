@@ -29,19 +29,19 @@ const _SETTINGS_PATH := "user://audio_settings.cfg"
 # ---------------------------------------------------------------------------
 # Stream catalog
 # ---------------------------------------------------------------------------
+# Latency-critical SFX are WAV (no decode delay, ~5 ms start). Long stings
+# and music stay compressed since start latency is not perceptible there.
 const SFX_PATHS := {
-	"tank_fire":      "res://assets/audio/sfx/tank_fire.mp3",
-	"bullet_hit":     "res://assets/audio/sfx/bullet_hit.ogg",
+	"tank_fire":      "res://assets/audio/sfx/tank_fire.wav",
+	"bullet_hit":     "res://assets/audio/sfx/bullet_hit.wav",
 	# Reuses the tank-death warhead sample at a lower volume / shorter distance
 	# (see bullet.gd _explode opts). One file, two roles.
-	"bullet_explode": "res://assets/audio/sfx/explosion.mp3",
-	"explosion":      "res://assets/audio/sfx/explosion.mp3",
-	"ram_impact":     "res://assets/audio/sfx/ram_impact.mp3",
-	"wall_bump":      "res://assets/audio/sfx/wall_bump.mp3",
-	"pickup_ammo":    "res://assets/audio/sfx/pickup_ammo.ogg",
-	"pickup_health":  "res://assets/audio/sfx/pickup_health.ogg",
+	"bullet_explode": "res://assets/audio/sfx/explosion.wav",
+	"explosion":      "res://assets/audio/sfx/explosion.wav",
+	"pickup_ammo":    "res://assets/audio/sfx/pickup_ammo.wav",
+	"pickup_health":  "res://assets/audio/sfx/pickup_health.wav",
 	"countdown_beep": "res://assets/audio/sfx/countdown_beep.ogg",
-	"match_go":       "res://assets/audio/sfx/match_go.ogg",
+	"match_go":       "res://assets/audio/sfx/match_go.wav",
 	"victory":        "res://assets/audio/sfx/victory.mp3",
 	"defeat":         "res://assets/audio/sfx/defeat.mp3",
 }
@@ -88,6 +88,23 @@ func _ready() -> void:
 	add_child(_music_player)
 
 	_load_settings()
+
+	# Pre-warm the stream cache. Without this, the very first time each
+	# sound is triggered, _get_stream calls load() synchronously, which can
+	# add 30-80 ms of latency on first play. Front-loading at startup means
+	# no in-game hitches.
+	_preload_all_streams()
+
+
+func _preload_all_streams() -> void:
+	for name in SFX_PATHS.keys():
+		_get_stream(name)
+	for name in UI_PATHS.keys():
+		_get_stream(name)
+	for name in MUSIC_PATHS.keys():
+		_get_stream(name)
+	for name in LOOP_PATHS.keys():
+		_get_stream(name)
 
 
 # Drop all references on engine shutdown so Godot doesn't warn about the
