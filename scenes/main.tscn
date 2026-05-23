@@ -1,0 +1,111 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/arena.gd" id="1_arena"]
+[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="2_hud"]
+[ext_resource type="PackedScene" path="res://scenes/pause_menu.tscn" id="3_pause"]
+[ext_resource type="Texture2D" uid="uid://c1eeoj0ul1d6u" path="res://assets/floor_tile.png" id="4_floor"]
+[ext_resource type="Texture2D" uid="uid://cdp2r8y0puonb" path="res://assets/wall_tile.png" id="5_wall"]
+
+[sub_resource type="RectangleShape2D" id="Shape_top"]
+size = Vector2(1280, 32)
+
+[sub_resource type="RectangleShape2D" id="Shape_bottom"]
+size = Vector2(1280, 32)
+
+[sub_resource type="RectangleShape2D" id="Shape_left"]
+size = Vector2(32, 720)
+
+[sub_resource type="RectangleShape2D" id="Shape_right"]
+size = Vector2(32, 720)
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_arena")
+
+[node name="Arena" type="Sprite2D" parent="."]
+texture = ExtResource("4_floor")
+position = Vector2(640, 360)
+texture_repeat = 2
+region_enabled = true
+region_rect = Rect2(0, 0, 1280, 720)
+
+[node name="WallTop" type="StaticBody2D" parent="."]
+collision_layer = 2
+position = Vector2(640, 16)
+groups = ["nav_wall"]
+
+[node name="Visual" type="Sprite2D" parent="WallTop"]
+texture = ExtResource("5_wall")
+scale = Vector2(0.125, 0.125)
+texture_repeat = 2
+region_enabled = true
+region_rect = Rect2(0, 0, 10240, 256)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WallTop"]
+shape = SubResource("Shape_top")
+
+[node name="WallBottom" type="StaticBody2D" parent="."]
+collision_layer = 2
+position = Vector2(640, 704)
+groups = ["nav_wall"]
+
+[node name="Visual" type="Sprite2D" parent="WallBottom"]
+texture = ExtResource("5_wall")
+scale = Vector2(0.125, 0.125)
+texture_repeat = 2
+region_enabled = true
+region_rect = Rect2(0, 0, 10240, 256)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WallBottom"]
+shape = SubResource("Shape_bottom")
+
+[node name="WallLeft" type="StaticBody2D" parent="."]
+collision_layer = 2
+position = Vector2(16, 360)
+groups = ["nav_wall"]
+
+[node name="Visual" type="Sprite2D" parent="WallLeft"]
+texture = ExtResource("5_wall")
+scale = Vector2(0.125, 0.125)
+texture_repeat = 2
+region_enabled = true
+region_rect = Rect2(0, 0, 256, 5760)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WallLeft"]
+shape = SubResource("Shape_left")
+
+[node name="WallRight" type="StaticBody2D" parent="."]
+collision_layer = 2
+position = Vector2(1264, 360)
+groups = ["nav_wall"]
+
+[node name="Visual" type="Sprite2D" parent="WallRight"]
+texture = ExtResource("5_wall")
+scale = Vector2(0.125, 0.125)
+texture_repeat = 2
+region_enabled = true
+region_rect = Rect2(0, 0, 256, 5760)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WallRight"]
+shape = SubResource("Shape_right")
+
+[node name="Tracks" type="Node2D" parent="."]
+
+[node name="NavRegion" type="NavigationRegion2D" parent="."]
+
+[node name="Walls" type="Node2D" parent="."]
+
+[node name="BulletSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://scenes/bullet.tscn")
+spawn_path = NodePath("..")
+
+[node name="AmmoPickupSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://scenes/ammo_pickup.tscn")
+spawn_path = NodePath("..")
+
+[node name="HealthPickupSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://scenes/health_pickup.tscn")
+spawn_path = NodePath("..")
+
+[node name="HUD" parent="." instance=ExtResource("2_hud")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("3_pause")]

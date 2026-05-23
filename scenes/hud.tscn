@@ -1,0 +1,50 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/hud.gd" id="1_hud"]
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_hud")
+
+[node name="Panel" type="PanelContainer" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = -120.0
+offset_right = 160.0
+offset_bottom = 120.0
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+theme_override_constants/separation = 20
+
+[node name="WinnerLabel" type="Label" parent="Panel/VBox"]
+text = "WINS!"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 32
+
+[node name="ContinueBtn" type="Button" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 48)
+text = "Continue"
+theme_override_font_sizes/font_size = 20
+
+[node name="RematchBtn" type="Button" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 48)
+text = "Rematch"
+theme_override_font_sizes/font_size = 20
+
+[node name="LobbyBtn" type="Button" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 48)
+text = "Back to Lobby"
+theme_override_font_sizes/font_size = 20
+
+[node name="QuitBtn" type="Button" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 48)
+text = "Quit"
+theme_override_font_sizes/font_size = 20
+
+[connection signal="pressed" from="Panel/VBox/ContinueBtn" to="." method="_on_continue_pressed"]
+[connection signal="pressed" from="Panel/VBox/RematchBtn" to="." method="_on_rematch_pressed"]
+[connection signal="pressed" from="Panel/VBox/LobbyBtn" to="." method="_on_lobby_pressed"]
+[connection signal="pressed" from="Panel/VBox/QuitBtn" to="." method="_on_quit_pressed"]

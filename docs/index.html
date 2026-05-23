@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TANK ARENA — LAN tank brawler for 2–4 commanders</title>
+  <meta name="description" content="A no-nonsense top-down tank brawler. Spin up a LAN game, throw in some AI grunts, ram, shoot, and don't get caught reloading." />
+  <meta property="og:title" content="TANK ARENA" />
+  <meta property="og:description" content="LAN tank brawler for 2–4 commanders. Fire. Ram. Survive." />
+  <meta property="og:image" content="assets/title_tank_silhouette.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/png" href="assets/title_tank_silhouette.png" />
+</head>
+<body>
+
+  <!-- ===== HERO ===== -->
+  <header class="hero">
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <div class="hero__inner">
+      <div class="hero__text">
+        <div class="stencil-tag">CLASSIFIED // OP. STEEL ARENA</div>
+        <h1 class="title">
+          <span class="title__line">TANK</span>
+          <span class="title__line title__line--accent">ARENA</span>
+        </h1>
+        <p class="tagline">
+          A top-down LAN brawler for <strong>2&ndash;4 commanders</strong>.<br />
+          Fire. Ram. Reload under pressure. Don't die.
+        </p>
+
+        <div class="downloads" id="downloads">
+          <a class="dl-btn dl-btn--primary" href="https://github.com/rossille/tta/releases/latest/download/TankArena.exe" data-platform="windows">
+            <span class="dl-btn__icon" aria-hidden="true">&#xE7EF;</span>
+            <span class="dl-btn__label">
+              <span class="dl-btn__platform">Windows</span>
+              <span class="dl-btn__file" data-size="windows">TankArena.exe</span>
+            </span>
+          </a>
+          <a class="dl-btn" href="https://github.com/rossille/tta/releases/latest/download/TankArena.dmg" data-platform="macos">
+            <span class="dl-btn__icon" aria-hidden="true">&#x2318;</span>
+            <span class="dl-btn__label">
+              <span class="dl-btn__platform">macOS</span>
+              <span class="dl-btn__file" data-size="macos">TankArena.dmg</span>
+            </span>
+          </a>
+          <a class="dl-btn" href="https://github.com/rossille/tta/releases/latest/download/TankArena.x86_64" data-platform="linux">
+            <span class="dl-btn__icon" aria-hidden="true">&#x1F427;</span>
+            <span class="dl-btn__label">
+              <span class="dl-btn__platform">Linux</span>
+              <span class="dl-btn__file" data-size="linux">TankArena.x86_64</span>
+            </span>
+          </a>
+        </div>
+
+        <div class="release-meta" id="release-meta">
+          <span class="release-meta__chip" id="release-tag">Latest release</span>
+          <span class="release-meta__sep">//</span>
+          <span class="release-meta__date" id="release-date">Loading deployment data&hellip;</span>
+        </div>
+      </div>
+
+      <div class="hero__art" aria-hidden="true">
+        <img src="assets/title_tank_silhouette.png" alt="" class="hero__tank" />
+        <div class="hero__tracks"></div>
+      </div>
+    </div>
+
+    <a class="scroll-cue" href="#briefing" aria-label="Scroll to briefing">
+      <span>BRIEFING</span>
+      <span class="scroll-cue__arrow">&darr;</span>
+    </a>
+  </header>
+
+  <!-- ===== BRIEFING / FEATURES ===== -->
+  <section class="briefing" id="briefing">
+    <div class="section__header">
+      <span class="section__tag">// MISSION BRIEFING</span>
+      <h2 class="section__title">What you're getting into</h2>
+    </div>
+
+    <div class="features">
+      <article class="feature">
+        <div class="feature__icon">
+          <img src="assets/icon_player.png" alt="" />
+        </div>
+        <h3>2&ndash;4 player LAN</h3>
+        <p>Auto-discovery on the local network. Same room, same Wi-Fi, same chaos. No accounts, no menus to navigate, no servers to wrangle.</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature__icon">
+          <img src="assets/icon_ai.png" alt="" />
+        </div>
+        <h3>AI grunts</h3>
+        <p>Three difficulty tiers with navmesh pathfinding and line-of-sight aiming. Fill any empty seat and the bots will gladly try to kill you.</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature__icon">
+          <img src="assets/ammo_pickup.png" alt="" />
+        </div>
+        <h3>Tanks start dry</h3>
+        <p>Zero rounds in the breech. The whole match is a scramble for ammo crates &mdash; nobody hides in a corner waiting it out.</p>
+      </article>
+
+      <article class="feature">
+        <div class="feature__icon">
+          <img src="assets/health_pickup.png" alt="" />
+        </div>
+        <h3>Ramming is a strategy</h3>
+        <p>Out of bullets? Pick up speed and bury your nose in someone's armor. Damage scales with closing speed.</p>
+      </article>
+
+      <article class="feature feature--wide">
+        <div class="feature__icon feature__icon--wreck">
+          <img src="assets/tank_destroyed.png" alt="" />
+        </div>
+        <h3>Built to feel mean</h3>
+        <p>Tank weight in the controls. Tread marks in the sand. Muzzle flash, hit flashes, debris, screen shake, lingering wreck fires. The little details that turn a prototype into a thing you actually want to play.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===== CONTROLS ===== -->
+  <section class="controls">
+    <div class="section__header">
+      <span class="section__tag">// FIELD MANUAL</span>
+      <h2 class="section__title">Crew controls</h2>
+    </div>
+
+    <div class="controls__grid">
+      <div class="control-card">
+        <div class="control-card__keys">
+          <kbd>W</kbd>
+          <span class="control-card__or">/</span>
+          <kbd>&uarr;</kbd>
+        </div>
+        <div class="control-card__label">Throttle</div>
+      </div>
+      <div class="control-card">
+        <div class="control-card__keys">
+          <kbd>S</kbd>
+          <span class="control-card__or">/</span>
+          <kbd>&darr;</kbd>
+        </div>
+        <div class="control-card__label">Reverse / brake</div>
+      </div>
+      <div class="control-card">
+        <div class="control-card__keys">
+          <kbd>A</kbd>
+          <span class="control-card__or">/</span>
+          <kbd>&larr;</kbd>
+        </div>
+        <div class="control-card__label">Turn left</div>
+      </div>
+      <div class="control-card">
+        <div class="control-card__keys">
+          <kbd>D</kbd>
+          <span class="control-card__or">/</span>
+          <kbd>&rarr;</kbd>
+        </div>
+        <div class="control-card__label">Turn right</div>
+      </div>
+      <div class="control-card control-card--fire">
+        <div class="control-card__keys">
+          <kbd class="kbd--wide">SPACE</kbd>
+        </div>
+        <div class="control-card__label">Fire</div>
+      </div>
+      <div class="control-card">
+        <div class="control-card__keys">
+          <kbd>ESC</kbd>
+        </div>
+        <div class="control-card__label">Pause</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== DEPLOY ===== -->
+  <section class="deploy">
+    <div class="section__header">
+      <span class="section__tag">// DEPLOY</span>
+      <h2 class="section__title">Get the binaries</h2>
+    </div>
+
+    <div class="deploy__grid">
+      <a class="deploy-card" href="https://github.com/rossille/tta/releases/latest/download/TankArena.exe" data-platform="windows">
+        <div class="deploy-card__platform">Windows</div>
+        <div class="deploy-card__filename">TankArena.exe</div>
+        <div class="deploy-card__arch">x86_64 &middot; standalone</div>
+        <div class="deploy-card__cta">Download &rarr;</div>
+      </a>
+      <a class="deploy-card" href="https://github.com/rossille/tta/releases/latest/download/TankArena.dmg" data-platform="macos">
+        <div class="deploy-card__platform">macOS</div>
+        <div class="deploy-card__filename">TankArena.dmg</div>
+        <div class="deploy-card__arch">Universal &middot; unsigned</div>
+        <div class="deploy-card__cta">Download &rarr;</div>
+      </a>
+      <a class="deploy-card" href="https://github.com/rossille/tta/releases/latest/download/TankArena.x86_64" data-platform="linux">
+        <div class="deploy-card__platform">Linux</div>
+        <div class="deploy-card__filename">TankArena.x86_64</div>
+        <div class="deploy-card__arch">x86_64 &middot; chmod +x and go</div>
+        <div class="deploy-card__cta">Download &rarr;</div>
+      </a>
+    </div>
+
+    <p class="deploy__note" id="deploy-note">
+      Looking for older builds or the source? &nbsp;
+      <a href="https://github.com/rossille/tta/releases">All releases</a>
+      &nbsp;&middot;&nbsp;
+      <a href="https://github.com/rossille/tta">Source on GitHub</a>
+    </p>
+
+    <div class="deploy__macos-note">
+      <strong>macOS users:</strong> binaries are unsigned. After dragging the app from the DMG,
+      run <code>xattr -dr com.apple.quarantine /Applications/TankArena.app</code> or right-click &rarr; Open the first time.
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="footer__inner">
+      <div class="footer__brand">
+        <span class="footer__logo">TANK&nbsp;ARENA</span>
+        <span class="footer__build">Godot 4.6 &middot; GDScript</span>
+      </div>
+      <div class="footer__links">
+        <a href="https://github.com/rossille/tta">GitHub</a>
+        <a href="https://github.com/rossille/tta/releases">Releases</a>
+        <a href="https://github.com/rossille/tta/issues">Report a bug</a>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      Built by <a href="https://github.com/rossille">@rossille</a>. No tanks were harmed in the making of this brawler.
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

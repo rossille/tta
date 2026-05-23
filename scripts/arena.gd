@@ -1,0 +1,564 @@
+# arena.gd
+# Spawns tanks, manages the match, handles win condition.
+#
+# Multiplayer startup sequence:
+#   1. Every peer's _ready() sends _rpc_peer_ready() to the host.
+#   2. Host counts ready peers. When all connected peers have checked in,
+#      host calls _do_spawn_multiplayer() locally and sends _rpc_set_config()
+#      to clients (call_remote only — host does NOT re-run via RPC).
+#   3. Clients receive _rpc_set_config() and call _do_spawn_multiplayer().
+
+extends Node2D
+
+const TANK_SCENE          := preload("res://scenes/tank.tscn")
+const AI_SCRIPT           := preload("res://scripts/tank_ai.gd")
+const AMMO_PICKUP_SCENE   := preload("res://scenes/ammo_pickup.tscn")
+const HEALTH_PICKUP_SCENE := preload("res://scenes/health_pickup.tscn")
+const MapGenerator        := preload("res://scripts/map_generator.gd")
+
+const TANK_COLORS := [
+	Color(0.310, 0.765, 0.969),  # sky blue    — P1
+	Color(1.000, 0.439, 0.263),  # deep orange — P2
+	Color(0.400, 0.733, 0.416),  # medium green — AI
+	Color(0.808, 0.576, 0.847),  # soft purple  — AI
+]
+
+const BARREL_COLORS := [
+	Color(0.051, 0.278, 0.631),  # deep navy
+	Color(0.749, 0.212, 0.047),  # dark burnt orange
+	Color(0.106, 0.369, 0.125),  # dark forest green
+	Color(0.290, 0.078, 0.549),  # deep violet
+]
+
+# Populated by the map generator each match
+var _spawn_points:    Array = []
+var _spawn_rotations: Array = []
+
+# Node that holds all dynamically created inner walls
+@onready var _walls_node:  Node2D = $Walls
+@onready var _tracks_node: Node2D = $Tracks
+
+var _tanks: Array = []
+var _alive: int   = 0
+var _ready_peers: Array = []
+
+# Ram damage cooldowns: "id_a:id_b" → seconds remaining
+var _ram_cooldowns: Dictionary = {}
+
+# Ammo pickup respawn timers: [seconds_remaining, ...]
+var _pickup_respawn_timers: Array = []
+
+# Health pickup: counts up to HEALTH_PICKUP_INTERVAL, then spawns one
+var _health_spawn_timer: float = 0.0
+var _health_pickup_active: bool = false
+
+const PICKUP_MARGIN := 80.0   # keep pickups away from walls
+const ARENA_W       := 1280.0
+const ARENA_H       := 720.0
+
+@onready var _hud: CanvasLayer         = $HUD
+@onready var _nav_region: NavigationRegion2D = $NavRegion
+
+
+# ---------------------------------------------------------------------------
+# Ready
+# ---------------------------------------------------------------------------
+func _ready() -> void:
+	Cursor.hide_cursor()
+	if Net.is_active():
+		if Net.is_host():
+			print("[ARENA] Host ready. player_info: ", Net.player_info)
+			_register_peer_ready(1)
+		else:
+			print("[ARENA] Client ready, my_id=", Net.my_id(), " sending peer_ready to host")
+			_rpc_peer_ready.rpc_id(1)
+	else:
+		_spawn_solo()
+
+
+# ---------------------------------------------------------------------------
+# Solo spawn
+# ---------------------------------------------------------------------------
+func _spawn_solo() -> void:
+	_generate_map([])
+	# Wait for the navmesh bake to complete, then one extra physics frame for
+	# the NavigationServer to sync the result to the map (iteration_id goes
+	# from 0 to 1 on that frame).
+	await _nav_region.bake_finished
+	await get_tree().physics_frame
+	var ai_count: int = GameConfig.ai_list.size()
+	var total: int = min(GameConfig.num_players + ai_count, 4)
+	for i in range(total):
+		var is_player: bool = i < GameConfig.num_players
+		var tank := _create_tank(i, is_player, i)
+		if not is_player:
+			var ai_index: int = i - GameConfig.num_players
+			var ai_diff: int = GameConfig.ai_list[ai_index].get("difficulty", 1)
+			var ai := AI_SCRIPT.new()
+			ai.difficulty = ai_diff
+			tank.add_child(ai)
+		add_child(tank)
+		_tanks.append(tank)
+	_alive = _tanks.size()
+	_connect_death_signals()
+	_spawn_all_pickups()
+
+
+# ---------------------------------------------------------------------------
+# Multiplayer: peer ready handshake
+# ---------------------------------------------------------------------------
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_peer_ready() -> void:
+	_register_peer_ready(multiplayer.get_remote_sender_id())
+
+
+func _register_peer_ready(peer_id: int) -> void:
+	if peer_id not in _ready_peers:
+		_ready_peers.append(peer_id)
+
+	var expected := Net.player_info.keys()
+	print("[ARENA] peer_ready from ", peer_id, " | ready=", _ready_peers, " | expected=", expected)
+
+	var all_ready := true
+	for pid in expected:
+		if pid not in _ready_peers:
+			all_ready = false
+			break
+
+	if all_ready:
+		_start_spawn()
+
+
+func _start_spawn() -> void:
+	# Build slot assignments
+	var peers := Net.player_info.keys()
+	peers.sort()
+	var slot := 0
+	GameConfig.peer_slots.clear()
+	for peer_id in peers:
+		GameConfig.peer_slots[peer_id] = slot
+		slot += 1
+
+	var ai_count: int = min(GameConfig.ai_list.size(), 4 - peers.size())
+	# Trim ai_list to fit within the 4-player cap
+	var ai_list_trimmed: Array = GameConfig.ai_list.slice(0, ai_count)
+
+	# Generate the map on the host; collect wall segments to send to clients
+	var wall_segments: Array = _generate_map([])
+
+	# Send config + wall data to clients
+	_rpc_set_config.rpc(
+		GameConfig.peer_slots,
+		ai_list_trimmed,
+		wall_segments,
+		_spawn_points,
+		_spawn_rotations
+	)
+
+	# Wait for the navmesh bake, then one extra physics frame for the
+	# NavigationServer to sync the result before spawning.
+	await _nav_region.bake_finished
+	await get_tree().physics_frame
+	# Host spawns directly
+	_do_spawn_multiplayer(GameConfig.peer_slots, ai_list_trimmed)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_set_config(peer_slots: Dictionary, ai_list: Array,
+		wall_segments: Array, spawn_pts: Array, spawn_rots: Array) -> void:
+	# Runs on clients only
+	print("[ARENA] Client received _rpc_set_config: slots=", peer_slots, " ai=", ai_list)
+	GameConfig.peer_slots = peer_slots
+	GameConfig.ai_list    = ai_list
+	# Build the map from the host's data so all clients are identical
+	_build_walls_from_segments(wall_segments)
+	_spawn_points    = spawn_pts
+	_spawn_rotations = spawn_rots
+	# Bake the navmesh on this client and wait for it to finish before spawning
+	# so that NavigationAgent2D nodes start with a valid navigation map.
+	_bake_navmesh()
+	await _nav_region.bake_finished
+	await get_tree().physics_frame
+	_do_spawn_multiplayer(peer_slots, ai_list)
+
+
+# ---------------------------------------------------------------------------
+# Map generation
+# ---------------------------------------------------------------------------
+
+# Generates inner walls, populates _spawn_points/_spawn_rotations,
+# returns the raw segment array (Array of [x,y,w,h] int arrays) for RPC.
+func _generate_map(_unused: Array) -> Array:
+	var gen := MapGenerator.new()
+	var result: Dictionary = gen.generate(_walls_node)
+	_spawn_points    = result["spawn_points"]
+	_spawn_rotations = result["spawn_rotations"]
+
+	# Collect segment data for RPC — find CollisionShape2D by type, not name
+	var segments: Array = []
+	for child in _walls_node.get_children():
+		if not child is StaticBody2D:
+			continue
+		var cshape: CollisionShape2D = null
+		for sub in child.get_children():
+			if sub is CollisionShape2D:
+				cshape = sub
+				break
+		if cshape == null:
+			continue
+		var rect_shape: RectangleShape2D = cshape.shape
+		segments.append([child.position.x, child.position.y,
+		                 rect_shape.size.x, rect_shape.size.y])
+
+	# Bake navmesh now that all walls are in the scene tree
+	_bake_navmesh()
+	return segments
+
+
+func _bake_navmesh() -> void:
+	var nav_poly := NavigationPolygon.new()
+
+	# Walkable outline = full arena interior (between the border walls)
+	nav_poly.add_outline(PackedVector2Array([
+		Vector2(16, 16),
+		Vector2(1264, 16),
+		Vector2(1264, 704),
+		Vector2(16, 704),
+	]))
+
+	# Agent radius matches half the tank's narrow dimension
+	nav_poly.agent_radius = 14.0
+
+	# SOURCE_GEOMETRY_GROUPS_EXPLICIT scans all nodes in the named group
+	# regardless of tree depth, covering both border walls (direct children of
+	# Main) and generated inner walls (grandchildren under $Walls).
+	nav_poly.source_geometry_mode = NavigationPolygon.SOURCE_GEOMETRY_GROUPS_EXPLICIT
+	nav_poly.source_geometry_group_name = "nav_wall"
+	nav_poly.parsed_geometry_type = NavigationPolygon.PARSED_GEOMETRY_STATIC_COLLIDERS
+
+	_nav_region.navigation_polygon = nav_poly
+
+	# Async at runtime — callers must await bake_finished then one physics_frame
+	# before spawning tanks, so the NavigationServer has synced the result.
+	_nav_region.bake_navigation_polygon()
+
+
+func _build_walls_from_segments(segments: Array) -> void:
+	# Clear any existing generated walls
+	for child in _walls_node.get_children():
+		child.queue_free()
+
+	# Use the same builder the host uses during generation so clients see the
+	# textured wall sprite rather than a placeholder ColorRect.
+	for seg in segments:
+		var pos := Vector2(seg[0], seg[1])
+		var sz  := Vector2(seg[2], seg[3])
+		MapGenerator.build_wall_at(_walls_node, pos, sz)
+
+
+# ---------------------------------------------------------------------------
+# Spawn tanks
+# ---------------------------------------------------------------------------
+func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
+	print("[ARENA] _do_spawn_multiplayer on peer ", Net.my_id(), " slots=", peer_slots)
+	var my_id := Net.my_id()
+
+	var peers := peer_slots.keys()
+	peers.sort()
+	for peer_id in peers:
+		var s: int = peer_slots[peer_id]
+		var is_mine: bool = (peer_id == my_id)
+		var tank := _create_tank(s, is_mine, peer_id)
+		tank.name = "Tank_%d" % peer_id
+		add_child(tank)
+		# Movement authority: owning peer (so only they simulate physics)
+		tank.set_multiplayer_authority(peer_id)
+		# Combat authority: always host (so HP is always written from host to all)
+		tank.get_node("CombatSync").set_multiplayer_authority(1)
+		_tanks.append(tank)
+
+	var ai_start: int = peer_slots.size()
+	for i in range(ai_list.size()):
+		var s: int = ai_start + i
+		var tank := _create_tank(s, false, 1)
+		tank.name = "Tank_AI_%d" % i
+		tank.control_mode = tank.ControlMode.AI
+		add_child(tank)
+		tank.set_multiplayer_authority(1)
+		# AI tanks are host-owned so CombatSync authority is already 1
+
+		if Net.is_host():
+			var ai_entry: Dictionary = ai_list[i]
+			var ai := AI_SCRIPT.new()
+			ai.difficulty = ai_entry.get("difficulty", 1)
+			tank.add_child(ai)
+
+		_tanks.append(tank)
+
+	_alive = _tanks.size()
+
+	if Net.is_host():
+		_connect_death_signals()
+		_spawn_all_pickups()
+
+
+# ---------------------------------------------------------------------------
+# Ammo pickup management (host only)
+# ---------------------------------------------------------------------------
+func _spawn_all_pickups() -> void:
+	for i in range(TankConfig.AMMO_PICKUP_COUNT):
+		_spawn_pickup(i)
+
+
+func _random_safe_position() -> Vector2:
+	# Retry until the candidate lands on the navmesh (i.e. not inside a wall).
+	# The navmesh is baked with agent_radius=14, so any point it returns is
+	# guaranteed to be reachable. We compare the snapped point to the candidate:
+	# if they're within 4px the candidate is clear of walls.
+	var map_rid := _nav_region.get_navigation_map()
+	# If the navmesh hasn't completed its first sync yet, skip the check —
+	# pickups spawned at match start are unlikely to land inside a wall anyway.
+	if NavigationServer2D.map_get_iteration_id(map_rid) == 0:
+		return Vector2(
+			randf_range(PICKUP_MARGIN, ARENA_W - PICKUP_MARGIN),
+			randf_range(PICKUP_MARGIN, ARENA_H - PICKUP_MARGIN)
+		)
+	for _i in range(50):
+		var candidate := Vector2(
+			randf_range(PICKUP_MARGIN, ARENA_W - PICKUP_MARGIN),
+			randf_range(PICKUP_MARGIN, ARENA_H - PICKUP_MARGIN)
+		)
+		var snapped := NavigationServer2D.map_get_closest_point(map_rid, candidate)
+		if candidate.distance_to(snapped) < 4.0:
+			return candidate
+	# Fallback: dead centre of the arena
+	return Vector2(ARENA_W / 2.0, ARENA_H / 2.0)
+
+
+func _spawn_pickup(slot: int) -> void:
+	var pickup: Area2D = AMMO_PICKUP_SCENE.instantiate()
+	pickup.position = _random_safe_position()
+	pickup.position_provider = _random_safe_position
+	pickup.collected.connect(_on_pickup_collected.bind(slot))
+	add_child(pickup, true)
+
+
+func _on_pickup_collected(pickup: Node, slot: int) -> void:
+	while _pickup_respawn_timers.size() <= slot:
+		_pickup_respawn_timers.append(0.0)
+	_pickup_respawn_timers[slot] = TankConfig.AMMO_RESPAWN_TIME
+
+
+func _spawn_health_pickup() -> void:
+	var pickup: Area2D = HEALTH_PICKUP_SCENE.instantiate()
+	pickup.position = _random_safe_position()
+	pickup.collected.connect(_on_health_collected)
+	_health_pickup_active = true
+	add_child(pickup, true)
+
+
+func _on_health_collected() -> void:
+	_health_pickup_active = false
+	_health_spawn_timer = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Debug shortcuts
+# ---------------------------------------------------------------------------
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.physical_keycode == KEY_P:
+			for tank in _tanks:
+				if is_instance_valid(tank) and not tank._dead \
+						and tank.control_mode == tank.ControlMode.AI:
+					tank.take_damage(9999.0)
+
+
+# ---------------------------------------------------------------------------
+# Host-side ram damage detection + pickup respawn ticks
+# ---------------------------------------------------------------------------
+func _physics_process(delta: float) -> void:
+	if Net.is_active() and not Net.is_host():
+		return
+
+	# Tick health pickup spawn interval (runs even when tanks array is empty)
+	if not _health_pickup_active:
+		_health_spawn_timer += delta
+		if _health_spawn_timer >= TankConfig.HEALTH_PICKUP_INTERVAL:
+			_health_spawn_timer = 0.0
+			_spawn_health_pickup()
+
+	if _tanks.is_empty():
+		return
+
+	# Tick ammo pickup respawn timers
+	for slot in range(_pickup_respawn_timers.size()):
+		if _pickup_respawn_timers[slot] > 0.0:
+			_pickup_respawn_timers[slot] -= delta
+			if _pickup_respawn_timers[slot] <= 0.0:
+				_pickup_respawn_timers[slot] = 0.0
+				_spawn_pickup(slot)
+
+	# Purge freed or dead tanks from the array so we never touch a stale reference
+	_tanks = _tanks.filter(func(t): return is_instance_valid(t) and not t._dead)
+
+	# Tick down all pair cooldowns
+	for key in _ram_cooldowns.keys():
+		_ram_cooldowns[key] -= delta
+		if _ram_cooldowns[key] <= 0.0:
+			_ram_cooldowns.erase(key)
+
+	# Check every unique pair of live tanks
+	for i in range(_tanks.size()):
+		var a: CharacterBody2D = _tanks[i]
+		for j in range(i + 1, _tanks.size()):
+			var b: CharacterBody2D = _tanks[j]
+
+			# Skip if still on cooldown for this pair
+			var pair_key: String = "%d:%d" % [a.tank_id, b.tank_id]
+			if _ram_cooldowns.has(pair_key):
+				continue
+
+			# Tank body is 32x24 — 36px threshold covers actual contact
+			var dist: float = a.global_position.distance_to(b.global_position)
+			if dist > 47.0:
+				continue
+
+			# Relative approach speed along the axis between the two tanks
+			var axis: Vector2 = (b.global_position - a.global_position).normalized()
+			var rel_speed: float = (a.velocity - b.velocity).dot(axis)
+			# rel_speed > 0 means A is closing on B
+			if rel_speed < TankConfig.RAM_MIN_SPEED:
+				continue
+
+			var dmg: float = rel_speed * TankConfig.RAM_DAMAGE_FACTOR
+			a.take_damage(dmg)
+			b.take_damage(dmg)
+			_ram_cooldowns[pair_key] = TankConfig.RAM_COOLDOWN
+
+
+# ---------------------------------------------------------------------------
+# Tank factory
+# ---------------------------------------------------------------------------
+func _create_tank(slot: int, is_player: bool, _peer_id: int) -> CharacterBody2D:
+	var tank: CharacterBody2D = TANK_SCENE.instantiate()
+	var idx: int = slot % _spawn_points.size()
+	tank.position = _spawn_points[idx]
+	tank.rotation = _spawn_rotations[idx]
+	tank.tank_id      = slot
+	tank.control_mode = tank.ControlMode.PLAYER if is_player else tank.ControlMode.AI
+
+	var body: Sprite2D   = tank.get_node("Body")
+	var barrel: Sprite2D = tank.get_node("Barrel")
+	body.modulate   = TANK_COLORS[slot   % TANK_COLORS.size()]
+	barrel.modulate = BARREL_COLORS[slot % BARREL_COLORS.size()]
+	tank.tracks_node = _tracks_node
+
+	if is_player:
+		_add_player_indicator(tank)
+
+	# Solo AI difficulty is now handled in _spawn_solo directly (per-AI entry)
+	# Nothing to do here for the solo AI case.
+
+	return tank
+
+
+func _add_player_indicator(tank: CharacterBody2D) -> void:
+	var indicator := Node2D.new()
+
+	# Build a dotted circle using short Line2D arcs
+	const RADIUS    := 28.0
+	const SEGMENTS  := 8      # number of dots around the circle
+	const ARC_FRAC  := 0.55   # fraction of each segment that is solid (rest is gap)
+	const DOT_W     := 2.0
+	const COLOR     := Color(1.0, 1.0, 1.0, 0.75)
+
+	for i in range(SEGMENTS):
+		var angle_start: float = (TAU / SEGMENTS) * i
+		var angle_end: float   = angle_start + (TAU / SEGMENTS) * ARC_FRAC
+		var steps: int = 4
+		var arc := Line2D.new()
+		arc.width = DOT_W
+		arc.default_color = COLOR
+		arc.begin_cap_mode = Line2D.LINE_CAP_ROUND
+		arc.end_cap_mode   = Line2D.LINE_CAP_ROUND
+		for s in range(steps + 1):
+			var a: float = lerp(angle_start, angle_end, float(s) / steps)
+			arc.add_point(Vector2(cos(a), sin(a)) * RADIUS)
+		indicator.add_child(arc)
+
+	# Attach a tiny inline script that rotates the indicator each frame
+	var rot_script := GDScript.new()
+	rot_script.source_code = """
+extends Node2D
+func _process(delta):
+	rotation += 0.6 * delta
+"""
+	rot_script.reload()
+	indicator.set_script(rot_script)
+
+	tank.add_child(indicator)
+
+
+func _connect_death_signals() -> void:
+	for t in _tanks:
+		if not t.died.is_connected(_on_tank_died):
+			t.died.connect(_on_tank_died)
+
+
+# ---------------------------------------------------------------------------
+# Death + win condition
+# ---------------------------------------------------------------------------
+func _on_tank_died(tank: Node) -> void:
+	_alive -= 1
+	_check_win()
+
+
+func _check_win() -> void:
+	if _alive > 1:
+		return
+	await get_tree().create_timer(3.0).timeout
+
+	var winner_name := "Nobody"
+	var winner_tank: Node = null
+	for t in _tanks:
+		if is_instance_valid(t) and not t._dead:
+			winner_tank = t
+			var idx: int = _tanks.find(t)
+			if Net.is_active():
+				for peer_id in GameConfig.peer_slots:
+					if GameConfig.peer_slots[peer_id] == idx:
+						winner_name = Net.player_info.get(peer_id, {}).get("name", "Player")
+						break
+				if winner_name == "Nobody":
+					winner_name = "AI %d" % (idx - GameConfig.peer_slots.size() + 1)
+			else:
+				if idx < GameConfig.num_players:
+					winner_name = "Player %d" % (idx + 1)
+				else:
+					winner_name = "AI %d" % (idx - GameConfig.num_players + 1)
+				
+			break
+
+	# Pause the winner tank until the player decides what to do
+	if is_instance_valid(winner_tank):
+		winner_tank.set_physics_process(false)
+
+	if not _hud.continued.is_connected(_on_continued):
+		_hud.continued.connect(_on_continued.bind(winner_tank))
+
+	if Net.is_active():
+		_rpc_show_winner.rpc(winner_name)
+	else:
+		_hud.show_winner(winner_name)
+
+
+func _on_continued(winner_tank: Node) -> void:
+	if is_instance_valid(winner_tank):
+		winner_tank.set_physics_process(true)
+		winner_tank.set_process(true)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_show_winner(winner_name: String) -> void:
+	_hud.show_winner(winner_name)

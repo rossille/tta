@@ -1,0 +1,14 @@
+# Godot 4 generated files
+.godot/
+*.uid
+
+# Export / build output
+dist/
+export/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Tooling
+.playwright-mcp/

@@ -1,0 +1,31 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/health_pickup.gd" id="1_hpickup"]
+[ext_resource type="Texture2D" uid="uid://bcmtk4hfvhhcg" path="res://assets/health_pickup.png" id="2_tex"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1"]
+radius = 10.0
+
+[sub_resource type="SceneReplicationConfig" id="ReplConf_health"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:scale")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+
+[node name="HealthPickup" type="Area2D"]
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("1_hpickup")
+
+[node name="Visual" type="Sprite2D" parent="."]
+texture = ExtResource("2_tex")
+scale = Vector2(0.16, 0.16)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_1")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("ReplConf_health")
+replication_interval = 0.0

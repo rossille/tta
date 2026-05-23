@@ -1,0 +1,83 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/tank.gd" id="1_tank"]
+[ext_resource type="Texture2D" uid="uid://ckwfj1fbb5xgw" path="res://assets/tank_body.png" id="2_body"]
+[ext_resource type="Texture2D" uid="uid://br4bka6e3ftyc" path="res://assets/tank_barrel.png" id="3_barrel"]
+[ext_resource type="Texture2D" uid="uid://mb8wco83ka4w" path="res://assets/tank_destroyed.png" id="4_destroyed"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(33.6, 25.6)
+
+[sub_resource type="SceneReplicationConfig" id="ReplicationConfig_movement"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:rotation")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:velocity")
+properties/2/spawn = false
+properties/2/replication_mode = 1
+
+[sub_resource type="SceneReplicationConfig" id="ReplicationConfig_combat"]
+properties/0/path = NodePath(".:current_hp")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:_dead")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:ammo_count")
+properties/2/spawn = true
+properties/2/replication_mode = 1
+
+[node name="Tank" type="CharacterBody2D"]
+collision_layer = 1
+collision_mask = 3
+script = ExtResource("1_tank")
+
+[node name="Body" type="Sprite2D" parent="."]
+texture = ExtResource("2_body")
+scale = Vector2(0.179, 0.167)
+
+[node name="Barrel" type="Sprite2D" parent="."]
+texture = ExtResource("3_barrel")
+position = Vector2(20, 0)
+scale = Vector2(0.169, 0.169)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_1")
+
+[node name="HealthBar" type="Node2D" parent="."]
+top_level = true
+
+[node name="BG" type="ColorRect" parent="HealthBar"]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 40.0
+offset_bottom = 6.0
+color = Color(0.15, 0.15, 0.15, 1.0)
+
+[node name="Drain" type="ColorRect" parent="HealthBar"]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 40.0
+offset_bottom = 6.0
+color = Color(0.85, 0.15, 0.15, 1.0)
+
+[node name="Fill" type="ColorRect" parent="HealthBar"]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 40.0
+offset_bottom = 6.0
+color = Color(0.0, 1.0, 0.0, 1.0)
+
+[node name="AmmoPips" type="Node2D" parent="HealthBar"]
+position = Vector2(0, -10)
+
+[node name="MovementSync" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("ReplicationConfig_movement")
+replication_interval = 0.0
+
+[node name="CombatSync" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("ReplicationConfig_combat")
+replication_interval = 0.0
