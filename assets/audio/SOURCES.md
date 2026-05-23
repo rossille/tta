@@ -14,8 +14,8 @@ the search by visiting the source URL in a browser.
 |------|--------|-----|---------|
 | `sfx/tank_fire.mp3` | Freesound · GaryQ · "Tank fire Mixed" | https://freesound.org/people/GaryQ/sounds/127845/ | CC0 |
 | `sfx/bullet_hit.ogg` | Kenney · Impact Sounds · `impactMetal_heavy_000` | https://kenney.nl/assets/impact-sounds | CC0 |
-| `sfx/bullet_explode.mp3` | Freesound · "Sharp Explosion 4 (of 5)" | https://freesound.org/sounds/336011/ | CC0 |
 | `sfx/explosion.mp3` | Freesound · ProjectsU012 · "Alpha-11 Warhead Explosion" | https://freesound.org/people/ProjectsU012/sounds/568877/ | CC0 |
+| _(reused for `bullet_explode`)_ | same as `explosion.mp3`, played at lower volume + shorter range — see `audio.gd` and `bullet.gd` | | |
 | `sfx/ram_impact.mp3` | Freesound · "ANI Big Pipe Hit" | https://freesound.org/people/Q.K./sounds/244983/ | CC0 |
 | `sfx/engine_idle.mp3` | Freesound · "Engine, motor (loopable)" | https://freesound.org/people/leandros.ntounis/sounds/398675/ | CC0 |
 | `sfx/tracks.mp3` | Freesound · "tracks moving" | https://freesound.org/sounds/849062/ | CC0 |

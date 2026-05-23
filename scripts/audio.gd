@@ -32,7 +32,9 @@ const _SETTINGS_PATH := "user://audio_settings.cfg"
 const SFX_PATHS := {
 	"tank_fire":      "res://assets/audio/sfx/tank_fire.mp3",
 	"bullet_hit":     "res://assets/audio/sfx/bullet_hit.ogg",
-	"bullet_explode": "res://assets/audio/sfx/bullet_explode.mp3",
+	# Reuses the tank-death warhead sample at a lower volume / shorter distance
+	# (see bullet.gd _explode opts). One file, two roles.
+	"bullet_explode": "res://assets/audio/sfx/explosion.mp3",
 	"explosion":      "res://assets/audio/sfx/explosion.mp3",
 	"ram_impact":     "res://assets/audio/sfx/ram_impact.mp3",
 	"wall_bump":      "res://assets/audio/sfx/wall_bump.mp3",
