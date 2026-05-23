@@ -18,6 +18,7 @@ config/name="TankArena"
 config/description="2D top-down tank arena"
 run/main_scene="res://scenes/lobby.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
+config/icon="res://icon.png"
 
 [autoload]
 

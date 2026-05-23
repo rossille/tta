@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1024px;
+    height: 1024px;
+    background: transparent;
+    overflow: hidden;
+  }
+
+  /* ============ ICON ROOT ============ */
+  .icon {
+    width: 1024px;
+    height: 1024px;
+    position: relative;
+    border-radius: 180px;
+    overflow: hidden;
+    /* Olive gradient base */
+    background:
+      radial-gradient(ellipse at 30% 25%, rgba(232, 169, 59, 0.18) 0%, transparent 55%),
+      linear-gradient(180deg, #3a4020 0%, #232812 100%);
+    box-shadow: inset 0 0 160px rgba(0, 0, 0, 0.55);
+  }
+
+  /* Hexagon mesh texture overlay (very subtle, echoes bg_lobby) */
+  .icon::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(232, 169, 59, 0.06) 0%, transparent 40%),
+      repeating-linear-gradient(
+        60deg,
+        transparent 0px, transparent 38px,
+        rgba(232, 169, 59, 0.04) 38px, rgba(232, 169, 59, 0.04) 40px
+      ),
+      repeating-linear-gradient(
+        120deg,
+        transparent 0px, transparent 38px,
+        rgba(232, 169, 59, 0.04) 38px, rgba(232, 169, 59, 0.04) 40px
+      );
+  }
+
+  /* Outer amber stencil ring (inset) */
+  .icon::after {
+    content: "";
+    position: absolute;
+    top: 60px; left: 60px; right: 60px; bottom: 60px;
+    border: 6px solid #e8a93b;
+    border-radius: 130px;
+    opacity: 0.75;
+    pointer-events: none;
+  }
+
+  /* The tank silhouette, scaled and positioned. Centered, slightly raised
+     so the bottom of the icon has visual weight from the T·A tag. */
+  .tank {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 880px;
+    transform: translate(-50%, -50%) translateX(-20px) translateY(-15px);
+    z-index: 3;
+    filter:
+      brightness(0.15)
+      contrast(1.15)
+      drop-shadow(0 16px 28px rgba(0, 0, 0, 0.6))
+      drop-shadow(0 0 40px rgba(0, 0, 0, 0.5));
+  }
+
+  /* Bottom stencil tag — pulled inside the frame */
+  .tag {
+    position: absolute;
+    left: 50%;
+    bottom: 130px;
+    transform: translateX(-50%);
+    z-index: 4;
+    font-family: "Black Ops One", Impact, sans-serif;
+    font-size: 64px;
+    letter-spacing: 0.18em;
+    color: #e8a93b;
+    text-shadow:
+      0 0 1px rgba(0, 0, 0, 0.9),
+      3px 3px 0 rgba(0, 0, 0, 0.5);
+  }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="icon">
+    <img class="tank" src="../../assets/title_tank_silhouette.png" alt="" />
+    <div class="tag">T·A</div>
+  </div>
+</body>
+</html>
