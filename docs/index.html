@@ -216,10 +216,44 @@
       <a href="https://github.com/rossille/tta">Source on GitHub</a>
     </p>
 
-    <div class="deploy__macos-note">
-      <strong>macOS users:</strong> the build is ad-hoc signed but not notarized with Apple.
-      First launch: right-click the app &rarr; <strong>Open</strong> &rarr; click <strong>Open</strong> in the dialog.
-      After that, double-click works normally.
+    <div class="install-block">
+      <div class="install-block__header">
+        <span class="install-block__title">macOS one-liner</span>
+        <span class="install-block__tag">recommended</span>
+      </div>
+      <p class="install-block__desc">
+        macOS Sequoia blocks unsigned apps with a dead-end "Done" button. Skip the dance &mdash;
+        paste this into <strong>Terminal.app</strong>. It downloads the latest build, installs to
+        <code>~/Applications</code>, strips the quarantine flag, and launches the game.
+      </p>
+
+      <div class="install-cmd">
+        <button class="install-cmd__copy" type="button" data-target="install-cmd-curl" aria-label="Copy command">Copy</button>
+        <pre><code id="install-cmd-curl">curl -fL -o /tmp/TankArena.dmg https://github.com/rossille/tta/releases/latest/download/TankArena.dmg && hdiutil attach -nobrowse -quiet /tmp/TankArena.dmg && mkdir -p ~/Applications && rm -rf ~/Applications/TankArena.app && cp -R /Volumes/TankArena/TankArena.app ~/Applications/ && hdiutil detach -quiet /Volumes/TankArena && rm /tmp/TankArena.dmg && xattr -dr com.apple.quarantine ~/Applications/TankArena.app && open ~/Applications/TankArena.app</code></pre>
+      </div>
+
+      <p class="install-block__after">
+        After the first run, launch the game any time with <strong>&#8984;Space &rarr; TankArena</strong>
+        or from Launchpad.
+      </p>
+
+      <details class="install-block__fallback">
+        <summary>Already downloaded the .dmg? &nbsp;Or prefer the GUI?</summary>
+
+        <p class="install-block__sub">If the .dmg is in your Downloads, skip the re-download:</p>
+        <div class="install-cmd">
+          <button class="install-cmd__copy" type="button" data-target="install-cmd-local" aria-label="Copy command">Copy</button>
+          <pre><code id="install-cmd-local">hdiutil attach -nobrowse -quiet ~/Downloads/TankArena.dmg && mkdir -p ~/Applications && rm -rf ~/Applications/TankArena.app && cp -R /Volumes/TankArena/TankArena.app ~/Applications/ && hdiutil detach -quiet /Volumes/TankArena && xattr -dr com.apple.quarantine ~/Applications/TankArena.app && open ~/Applications/TankArena.app</code></pre>
+        </div>
+
+        <p class="install-block__sub">GUI fallback (no Terminal):</p>
+        <ol class="install-block__steps">
+          <li>Download the .dmg above and drag <strong>TankArena.app</strong> into <code>/Applications</code>.</li>
+          <li>Double-click it &mdash; you'll see <em>"Apple could not verify TankArena&hellip;"</em>. Click <strong>Done</strong>.</li>
+          <li>Open <strong>System Settings &rarr; Privacy &amp; Security</strong>. Scroll to <strong>Security</strong> and click <strong>Open Anyway</strong>.</li>
+          <li>Authenticate with Touch ID, then double-click the app again. It will launch.</li>
+        </ol>
+      </details>
     </div>
   </section>
 
