@@ -184,11 +184,12 @@ func _process(delta: float) -> void:
 func _update_audio_loops(delta: float) -> void:
 	# Estimate speed from observed position deltas. Works on every peer
 	# regardless of authority (the owning peer's _speed isn't replicated).
-	var d := global_position - _audio_prev_pos
+	var d: Vector2 = global_position - _audio_prev_pos
 	_audio_prev_pos = global_position
-	var instant_speed := d.length() / max(delta, 0.0001)
-	# Smooth out network jitter and frame-to-frame noise
-	_audio_smooth_speed = lerp(_audio_smooth_speed, instant_speed, clamp(delta * 6.0, 0.0, 1.0))
+	# Use the typed math variants (maxf/clampf/lerpf) so the strict-typing
+	# warnings don't fire — the untyped overloads return Variant.
+	var instant_speed: float = d.length() / maxf(delta, 0.0001)
+	_audio_smooth_speed = lerpf(_audio_smooth_speed, instant_speed, clampf(delta * 6.0, 0.0, 1.0))
 
 	if _dead:
 		if _engine_player and _engine_player.playing:
@@ -199,14 +200,14 @@ func _update_audio_loops(delta: float) -> void:
 
 	# Engine: quiet idle at -22 dB, ramps to -10 dB at full throttle.
 	# Pitch sweeps from 0.9 to 1.35 with speed for the classic rev feel.
-	var speed_norm := clamp(_audio_smooth_speed / max_forward_speed, 0.0, 1.0)
+	var speed_norm: float = clampf(_audio_smooth_speed / max_forward_speed, 0.0, 1.0)
 	if _engine_player:
-		_engine_player.volume_db  = lerp(-22.0, -10.0, speed_norm)
-		_engine_player.pitch_scale = lerp(0.9, 1.35, speed_norm)
+		_engine_player.volume_db  = lerpf(-22.0, -10.0, speed_norm)
+		_engine_player.pitch_scale = lerpf(0.9, 1.35, speed_norm)
 
 	# Tracks: only audible when actually rolling.
 	if _tracks_player:
-		var target_db := -10.0 if _audio_smooth_speed > 18.0 else -60.0
+		var target_db: float = -10.0 if _audio_smooth_speed > 18.0 else -60.0
 		_tracks_player.volume_db = move_toward(_tracks_player.volume_db, target_db, 60.0 * delta)
 
 
@@ -266,9 +267,9 @@ func _sync_speed_after_slide() -> void:
 	# After move_and_slide() the engine may have removed the wall-normal component
 	# of velocity. Re-project back onto the tank's forward axis so _speed stays
 	# consistent — head-on hits kill speed, glancing hits reduce it proportionally.
-	var old_mag := abs(_speed)
+	var old_mag: float = absf(_speed)
 	_speed = velocity.dot(transform.x)
-	var lost := old_mag - abs(_speed)
+	var lost: float = old_mag - absf(_speed)
 	# A significant speed drop while colliding with a wall = wall bump.
 	# Tank-tank ram impacts are handled in arena.gd (different sound).
 	if lost > 50.0 and get_slide_collision_count() > 0:

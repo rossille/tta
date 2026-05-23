@@ -468,7 +468,7 @@ func _physics_process(delta: float) -> void:
 			# Heavy metal crash at the contact midpoint. Host triggers it
 			# (this whole block runs host-only) and replicates via RPC so
 			# every peer hears it.
-			var midpoint := (a.global_position + b.global_position) * 0.5
+			var midpoint: Vector2 = (a.global_position + b.global_position) * 0.5
 			_rpc_ram_impact.rpc(midpoint)
 
 

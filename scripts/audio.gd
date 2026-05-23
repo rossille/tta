@@ -94,15 +94,15 @@ func _get_stream(stream_name: String) -> AudioStream:
 	if stream_name in _cache:
 		return _cache[stream_name]
 
-	var path: String = (
-		SFX_PATHS.get(stream_name, "")
-		if SFX_PATHS.has(stream_name)
-		else UI_PATHS.get(stream_name, "")
-		if UI_PATHS.has(stream_name)
-		else MUSIC_PATHS.get(stream_name, "")
-		if MUSIC_PATHS.has(stream_name)
-		else LOOP_PATHS.get(stream_name, "")
-	)
+	var path: String = ""
+	if SFX_PATHS.has(stream_name):
+		path = SFX_PATHS[stream_name]
+	elif UI_PATHS.has(stream_name):
+		path = UI_PATHS[stream_name]
+	elif MUSIC_PATHS.has(stream_name):
+		path = MUSIC_PATHS[stream_name]
+	elif LOOP_PATHS.has(stream_name):
+		path = LOOP_PATHS[stream_name]
 	if path == "":
 		push_warning("Audio: unknown stream name '%s'" % stream_name)
 		return null
