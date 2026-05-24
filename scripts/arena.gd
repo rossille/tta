@@ -341,18 +341,19 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 		var tank := _create_tank(s, is_mine, peer_id)
 		tank.name = "Tank_%d" % peer_id
 		add_child(tank)
-		# Two-step authority dance. Setting authority before add_child broke
-		# the host's MovementSync (it registered but stopped pushing deltas
-		# in production builds). Setting it recursively from the tank parent
-		# after add_child broke CombatSync on the Windows guest (the per-
-		# synchronizer override didn't propagate). The only combination that
-		# worked for *both* MovementSync (host's tank → all peers) and
-		# CombatSync (host → all peers, including for guest-owned tanks) was
-		# to add_child first, then set authority on each synchronizer
-		# directly without going through the recursive parent walk.
-		tank.set_multiplayer_authority(peer_id, false)  # non-recursive
-		tank.get_node("MovementSync").set_multiplayer_authority(peer_id)
-		tank.get_node("CombatSync").set_multiplayer_authority(1)
+		# Only override authority when it differs from the scene default (1).
+		# In production builds (Godot 4.6), calling set_multiplayer_authority
+		# on a MultiplayerSynchronizer that was *already* correctly authoritative
+		# silently disables its broadcast — we lost the host's MovementSync
+		# this way both before AND after add_child. Solution: leave host-owned
+		# tanks (peer_id == 1) completely untouched so the scene's default
+		# authority of 1 stays in place. Only guest tanks need an override:
+		# the owning peer drives MovementSync; CombatSync stays at the host
+		# via the scene default.
+		if peer_id != 1:
+			tank.set_multiplayer_authority(peer_id, false)  # non-recursive
+			tank.get_node("MovementSync").set_multiplayer_authority(peer_id)
+			# CombatSync stays at the scene default (auth=1, host).
 		_tanks.append(tank)
 
 	var ai_start: int = peer_slots.size()
@@ -362,13 +363,8 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 		tank.name = "Tank_AI_%d" % i
 		tank.control_mode = tank.ControlMode.AI
 		add_child(tank)
-		# Same per-synchronizer pattern as above. For AI tanks every
-		# authority is the host (1), so this is mostly defensive — but it
-		# keeps the spawn code symmetric and lets each synchronizer see the
-		# explicit set call once it's already in the tree.
-		tank.set_multiplayer_authority(1, false)
-		tank.get_node("MovementSync").set_multiplayer_authority(1)
-		tank.get_node("CombatSync").set_multiplayer_authority(1)
+		# AI tanks are host-owned. Scene default (auth=1) is already correct
+		# for every node, so don't touch authority — same reason as above.
 
 		if Net.is_host():
 			var ai_entry: Dictionary = ai_list[i]
