@@ -340,16 +340,19 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 		var is_mine: bool = (peer_id == my_id)
 		var tank := _create_tank(s, is_mine, peer_id)
 		tank.name = "Tank_%d" % peer_id
-		# Set authority BEFORE add_child. MultiplayerSynchronizer reads the
-		# node's authority when it enters the tree and uses it to decide who
-		# replicates which way; setting authority after add_child can leave
-		# the synchronizer in a stale state on slower / non-Mac peers, which
-		# is what made bullets and HP fail to sync on the Windows guest.
-		# Movement authority: owning peer (so only they simulate physics).
-		tank.set_multiplayer_authority(peer_id)
-		# Combat authority: always host (so HP is always written from host to all).
-		tank.get_node("CombatSync").set_multiplayer_authority(1)
 		add_child(tank)
+		# Two-step authority dance. Setting authority before add_child broke
+		# the host's MovementSync (it registered but stopped pushing deltas
+		# in production builds). Setting it recursively from the tank parent
+		# after add_child broke CombatSync on the Windows guest (the per-
+		# synchronizer override didn't propagate). The only combination that
+		# worked for *both* MovementSync (host's tank → all peers) and
+		# CombatSync (host → all peers, including for guest-owned tanks) was
+		# to add_child first, then set authority on each synchronizer
+		# directly without going through the recursive parent walk.
+		tank.set_multiplayer_authority(peer_id, false)  # non-recursive
+		tank.get_node("MovementSync").set_multiplayer_authority(peer_id)
+		tank.get_node("CombatSync").set_multiplayer_authority(1)
 		_tanks.append(tank)
 
 	var ai_start: int = peer_slots.size()
@@ -358,10 +361,14 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 		var tank := _create_tank(s, false, 1)
 		tank.name = "Tank_AI_%d" % i
 		tank.control_mode = tank.ControlMode.AI
-		# Same rule as above — set authority before adding to tree.
-		tank.set_multiplayer_authority(1)
-		# AI tanks are host-owned so CombatSync authority is already 1
 		add_child(tank)
+		# Same per-synchronizer pattern as above. For AI tanks every
+		# authority is the host (1), so this is mostly defensive — but it
+		# keeps the spawn code symmetric and lets each synchronizer see the
+		# explicit set call once it's already in the tree.
+		tank.set_multiplayer_authority(1, false)
+		tank.get_node("MovementSync").set_multiplayer_authority(1)
+		tank.get_node("CombatSync").set_multiplayer_authority(1)
 
 		if Net.is_host():
 			var ai_entry: Dictionary = ai_list[i]
