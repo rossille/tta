@@ -485,15 +485,29 @@ func _process(delta: float) -> void:
 	if host_tank == null:
 		DebugLog.l("Tank_1 not found in tree")
 		return
-	var mv: Node = host_tank.get_node_or_null("MovementSync")
+	var mv: MultiplayerSynchronizer = host_tank.get_node_or_null("MovementSync")
 	if mv == null:
 		DebugLog.l("Tank_1.MovementSync missing")
 		return
-	DebugLog.l("Tank_1 pos=(%.0f,%.0f) rot=%.2f | tank.auth=%d MovementSync.auth=%d is_authority=%s" % [
+	# On the host, also report visibility for every connected peer so we can
+	# tell whether MovementSync thinks the guest is a valid sync target.
+	var extra := ""
+	if Net.is_host():
+		var peers := multiplayer.get_peers()
+		var vis_parts: Array = []
+		for pid in peers:
+			vis_parts.append("%d:%s" % [pid, str(mv.get_visibility_for(pid))])
+		extra = " | peers=%s public_vis=%s interval=%.3f" % [
+			str(vis_parts),
+			str(mv.public_visibility),
+			mv.replication_interval,
+		]
+	DebugLog.l("Tank_1 pos=(%.0f,%.0f) rot=%.2f | tank.auth=%d MovementSync.auth=%d is_authority=%s%s" % [
 		host_tank.position.x, host_tank.position.y, host_tank.rotation,
 		host_tank.get_multiplayer_authority(),
 		mv.get_multiplayer_authority(),
 		str(host_tank.is_multiplayer_authority()),
+		extra,
 	])
 
 

@@ -39,12 +39,15 @@ func _open_file() -> void:
 	if _opened:
 		return
 	_opened = true
-	_file = FileAccess.open(LOG_FILE, FileAccess.WRITE)
+	# Append mode so successive runs accumulate in the same file; each run is
+	# delimited by the === header below, making it easy to grep / split.
+	_file = FileAccess.open(LOG_FILE, FileAccess.READ_WRITE) if FileAccess.file_exists(LOG_FILE) else FileAccess.open(LOG_FILE, FileAccess.WRITE)
 	if _file == null:
 		push_error("[DebugLog] could not open " + LOG_FILE)
 		return
+	_file.seek_end()
 	var abs_path: String = ProjectSettings.globalize_path(LOG_FILE)
-	_file.store_string("=== TankArena debug log started at %s ===\n  path: %s\n" % [
+	_file.store_string("\n=== TankArena debug log started at %s ===\n  path: %s\n" % [
 		Time.get_datetime_string_from_system(),
 		abs_path,
 	])
