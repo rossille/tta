@@ -354,6 +354,13 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 			tank.set_multiplayer_authority(peer_id, false)  # non-recursive
 			tank.get_node("MovementSync").set_multiplayer_authority(peer_id)
 			# CombatSync stays at the scene default (auth=1, host).
+		DebugLog.l("spawned %s | tank.auth=%d MovementSync.auth=%d CombatSync.auth=%d is_authority=%s" % [
+			tank.name,
+			tank.get_multiplayer_authority(),
+			tank.get_node("MovementSync").get_multiplayer_authority(),
+			tank.get_node("CombatSync").get_multiplayer_authority(),
+			str(tank.is_multiplayer_authority()),
+		])
 		_tanks.append(tank)
 
 	var ai_start: int = peer_slots.size()
@@ -455,6 +462,39 @@ func _input(event: InputEvent) -> void:
 				if is_instance_valid(tank) and not tank._dead \
 						and tank.control_mode == tank.ControlMode.AI:
 					tank.take_damage(9999.0)
+
+
+# ---------------------------------------------------------------------------
+# Periodic debug snapshot of Tank_1 (the host's tank). One log line per
+# second per peer, funnelled to the host's debug.log via the DebugLog
+# autoload. Each peer reports the position/rotation it currently sees plus
+# the synchronizer authority state so we can tell at a glance whether the
+# host is broadcasting and whether the guests are receiving.
+# ---------------------------------------------------------------------------
+var _dbg_log_timer: float = 0.0
+
+func _process(delta: float) -> void:
+	if not Net.is_active():
+		return
+	_dbg_log_timer += delta
+	if _dbg_log_timer < 1.0:
+		return
+	_dbg_log_timer = 0.0
+
+	var host_tank: Node = get_node_or_null("Tank_1")
+	if host_tank == null:
+		DebugLog.l("Tank_1 not found in tree")
+		return
+	var mv: Node = host_tank.get_node_or_null("MovementSync")
+	if mv == null:
+		DebugLog.l("Tank_1.MovementSync missing")
+		return
+	DebugLog.l("Tank_1 pos=(%.0f,%.0f) rot=%.2f | tank.auth=%d MovementSync.auth=%d is_authority=%s" % [
+		host_tank.position.x, host_tank.position.y, host_tank.rotation,
+		host_tank.get_multiplayer_authority(),
+		mv.get_multiplayer_authority(),
+		str(host_tank.is_multiplayer_authority()),
+	])
 
 
 # ---------------------------------------------------------------------------

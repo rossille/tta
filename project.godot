@@ -29,6 +29,7 @@ Net="*res://scripts/net.gd"
 LanDiscovery="*res://scripts/lan_discovery.gd"
 Cursor="*res://scripts/cursor.gd"
 Audio="*res://scripts/audio.gd"
+DebugLog="*res://scripts/debug_log.gd"
 
 [display]
 
