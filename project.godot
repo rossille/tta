@@ -20,10 +20,6 @@ run/main_scene="res://scenes/lobby.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.png"
 
-[audio]
-
-driver/output_latency=15
-
 [autoload]
 
 TankConfig="*res://config/tank_config.gd"

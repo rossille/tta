@@ -41,6 +41,12 @@ var _spawn_rotations: Array = []
 var _tanks: Array = []
 var _alive: int   = 0
 var _ready_peers: Array = []
+# Guards against _start_spawn() being entered more than once if a late
+# (retried) _rpc_peer_ready arrives after we've already begun spawning.
+var _spawn_started: bool = false
+# Client side: flips true when the host acks our _rpc_peer_ready so the
+# retry loop in _send_peer_ready_with_retry can stop.
+var _peer_ready_acked: bool = false
 
 # Ram damage cooldowns: "id_a:id_b" → seconds remaining
 var _ram_cooldowns: Dictionary = {}
@@ -72,9 +78,27 @@ func _ready() -> void:
 			_register_peer_ready(1)
 		else:
 			print("[ARENA] Client ready, my_id=", Net.my_id(), " sending peer_ready to host")
-			_rpc_peer_ready.rpc_id(1)
+			_send_peer_ready_with_retry()
 	else:
 		_spawn_solo()
+
+
+# Client side. Repeatedly fires _rpc_peer_ready at the host until the host
+# acks via _rpc_peer_ready_ack. Without retries, a single packet that
+# arrives at the host before the host's /root/Main exists (e.g. while the
+# host is still finalising change_scene_to_file in a production build with
+# different timing than the dev machine) is silently dropped, and the
+# whole startup hangs — observed on the Linux guest where the host stays
+# stuck at "outer walls only".
+func _send_peer_ready_with_retry() -> void:
+	# Cap at ~10s so we don't loop forever if the host genuinely died.
+	for attempt in range(50):
+		if _peer_ready_acked:
+			return
+		_rpc_peer_ready.rpc_id(1)
+		await get_tree().create_timer(0.2).timeout
+	if not _peer_ready_acked:
+		push_warning("[ARENA] Client never received peer_ready ack from host")
 
 
 # Find the tank owned by this peer (the human player on this machine).
@@ -132,13 +156,32 @@ func _spawn_solo() -> void:
 
 # ---------------------------------------------------------------------------
 # Multiplayer: peer ready handshake
+#
+# Clients call _rpc_peer_ready on the host in a retry loop. Each receipt
+# triggers a _rpc_peer_ready_ack back to the sender so the loop can stop.
+# Re-receiving _rpc_peer_ready after spawn has already started is a no-op
+# (idempotent), so a stray late retry can't restart spawning.
 # ---------------------------------------------------------------------------
 @rpc("any_peer", "call_remote", "reliable")
 func _rpc_peer_ready() -> void:
-	_register_peer_ready(multiplayer.get_remote_sender_id())
+	var sender_id := multiplayer.get_remote_sender_id()
+	_register_peer_ready(sender_id)
+	# Ack so the client's retry loop terminates.
+	_rpc_peer_ready_ack.rpc_id(sender_id)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_peer_ready_ack() -> void:
+	_peer_ready_acked = true
 
 
 func _register_peer_ready(peer_id: int) -> void:
+	if _spawn_started:
+		# A late retry that arrived after we already started spawning. Safe
+		# to ignore — the ack RPC sent by _rpc_peer_ready will still cause
+		# the sender to stop retrying.
+		return
+
 	if peer_id not in _ready_peers:
 		_ready_peers.append(peer_id)
 
@@ -152,6 +195,7 @@ func _register_peer_ready(peer_id: int) -> void:
 			break
 
 	if all_ready:
+		_spawn_started = true
 		_start_spawn()
 
 
@@ -296,11 +340,16 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 		var is_mine: bool = (peer_id == my_id)
 		var tank := _create_tank(s, is_mine, peer_id)
 		tank.name = "Tank_%d" % peer_id
-		add_child(tank)
-		# Movement authority: owning peer (so only they simulate physics)
+		# Set authority BEFORE add_child. MultiplayerSynchronizer reads the
+		# node's authority when it enters the tree and uses it to decide who
+		# replicates which way; setting authority after add_child can leave
+		# the synchronizer in a stale state on slower / non-Mac peers, which
+		# is what made bullets and HP fail to sync on the Windows guest.
+		# Movement authority: owning peer (so only they simulate physics).
 		tank.set_multiplayer_authority(peer_id)
-		# Combat authority: always host (so HP is always written from host to all)
+		# Combat authority: always host (so HP is always written from host to all).
 		tank.get_node("CombatSync").set_multiplayer_authority(1)
+		add_child(tank)
 		_tanks.append(tank)
 
 	var ai_start: int = peer_slots.size()
@@ -309,9 +358,10 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 		var tank := _create_tank(s, false, 1)
 		tank.name = "Tank_AI_%d" % i
 		tank.control_mode = tank.ControlMode.AI
-		add_child(tank)
+		# Same rule as above — set authority before adding to tree.
 		tank.set_multiplayer_authority(1)
 		# AI tanks are host-owned so CombatSync authority is already 1
+		add_child(tank)
 
 		if Net.is_host():
 			var ai_entry: Dictionary = ai_list[i]

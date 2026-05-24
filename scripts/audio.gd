@@ -205,7 +205,18 @@ func _get_stream(stream_name: String) -> AudioStream:
 ##   - volume_jitter: ± dB, default 1.0
 ##   - max_distance:  attenuation distance in px, default 1800
 ##   - attenuation:   exponent, default 1.4
-##   - parent:        Node to parent the player under, default current scene
+##   - parent:        Node to parent the player under, default the Audio autoload
+##
+## The default parent is the Audio autoload (always alive) rather than the
+## current scene. AudioStreamPlayer2D uses global_position for spatialisation,
+## and when its parent is a plain Node global_position == position, so passing
+## world_pos directly still attenuates correctly against the listener.
+##
+## Why not parent to current_scene by default: callers like bullet._exit_tree
+## fire during scene teardown (round end → change_scene_to_file). The current
+## scene is "busy" being freed at that point, and add_child() errors out with
+## "Parent node is busy setting up children", losing the explosion SFX. The
+## autoload is never busy, so the SFX always plays.
 func play_sfx_2d(stream_name: String, world_pos: Vector2, opts: Dictionary = {}) -> AudioStreamPlayer2D:
 	var stream := _get_stream(stream_name)
 	if stream == null:
@@ -227,7 +238,7 @@ func play_sfx_2d(stream_name: String, world_pos: Vector2, opts: Dictionary = {})
 	var p_jitter: float = float(opts.get("pitch_jitter", PITCH_JITTER))
 	player.pitch_scale = 1.0 + randf_range(-p_jitter, p_jitter)
 
-	var parent: Node = opts.get("parent", get_tree().current_scene)
+	var parent: Node = opts.get("parent", self)
 	parent.add_child(player)
 	player.play()
 	player.finished.connect(player.queue_free)
