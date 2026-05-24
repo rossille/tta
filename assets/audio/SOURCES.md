@@ -35,11 +35,19 @@ stay compressed since their start latency isn't reactive.
 
 | File | Source | URL | License |
 |------|--------|-----|---------|
-| `ui/click.ogg` | Kenney · Interface Sounds · `click_002` | https://kenney.nl/assets/interface-sounds | CC0 |
-| `ui/hover.ogg` | Kenney · Interface Sounds · `select_002` | https://kenney.nl/assets/interface-sounds | CC0 |
-| `ui/confirm.ogg` | Kenney · Interface Sounds · `confirmation_001` | https://kenney.nl/assets/interface-sounds | CC0 |
-| `ui/back.ogg` | Kenney · Interface Sounds · `back_002` | https://kenney.nl/assets/interface-sounds | CC0 |
-| `ui/error.ogg` | Kenney · Interface Sounds · `error_005` | https://kenney.nl/assets/interface-sounds | CC0 |
+| `ui/click.wav` | Kenney · Interface Sounds · `click_002` | https://kenney.nl/assets/interface-sounds | CC0 |
+| `ui/hover.wav` | Kenney · Interface Sounds · `select_002` | https://kenney.nl/assets/interface-sounds | CC0 |
+| `ui/confirm.wav` | Kenney · Interface Sounds · `confirmation_001` | https://kenney.nl/assets/interface-sounds | CC0 |
+| `ui/back.wav` | Kenney · Interface Sounds · `back_002` | https://kenney.nl/assets/interface-sounds | CC0 |
+| `ui/error.wav` | Kenney · Interface Sounds · `error_005` | https://kenney.nl/assets/interface-sounds | CC0 |
+
+UI sounds were originally Kenney `.ogg` files. Converted to 16-bit PCM WAV
+for the same latency reason as the SFX above — every menu click was hitting
+a cold Vorbis decoder. afconvert produces a `WAVE_FORMAT_EXTENSIBLE` (0xFFFE)
+header which Godot's WAV importer rejects, so after conversion the fmt chunks
+were rewritten to plain `WAVE_FORMAT_PCM` (0x0001). All `*.wav.import` files
+under `assets/audio/sfx/` and `assets/audio/ui/` use `compress/mode=0` (PCM,
+no decode delay).
 
 ## Music
 

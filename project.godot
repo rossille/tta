@@ -22,7 +22,7 @@ config/icon="res://icon.png"
 
 [audio]
 
-driver/output_latency=5
+driver/output_latency=15
 
 [autoload]
 

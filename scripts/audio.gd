@@ -47,11 +47,11 @@ const SFX_PATHS := {
 }
 
 const UI_PATHS := {
-	"click":   "res://assets/audio/ui/click.ogg",
-	"hover":   "res://assets/audio/ui/hover.ogg",
-	"confirm": "res://assets/audio/ui/confirm.ogg",
-	"back":    "res://assets/audio/ui/back.ogg",
-	"error":   "res://assets/audio/ui/error.ogg",
+	"click":   "res://assets/audio/ui/click.wav",
+	"hover":   "res://assets/audio/ui/hover.wav",
+	"confirm": "res://assets/audio/ui/confirm.wav",
+	"back":    "res://assets/audio/ui/back.wav",
+	"error":   "res://assets/audio/ui/error.wav",
 }
 
 const MUSIC_PATHS := {
