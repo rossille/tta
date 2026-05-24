@@ -64,6 +64,7 @@ const ARENA_H       := 720.0
 
 @onready var _hud: CanvasLayer         = $HUD
 @onready var _nav_region: NavigationRegion2D = $NavRegion
+@onready var _tank_spawner: MultiplayerSpawner = $TankSpawner
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +73,16 @@ const ARENA_H       := 720.0
 func _ready() -> void:
 	Cursor.hide_cursor()
 	Audio.play_music("arena", 1.5)
+	# Wire the spawn function for tanks. The MultiplayerSpawner calls this
+	# function on every peer (host first as the authority, then each guest
+	# when it receives the replicated spawn message). Putting tank creation
+	# under a spawner is what makes MovementSync/CombatSync actually
+	# replicate between peers in Godot 4.6 production builds — manually
+	# add_child'd nodes register their synchronizers without ever delivering
+	# deltas, even with public_visibility=true and explicit
+	# set_visibility_for(peer, true). See the debug log archived in this
+	# repo's history for the smoking gun.
+	_tank_spawner.spawn_function = _spawn_tank
 	if Net.is_active():
 		if Net.is_host():
 			print("[ARENA] Host ready. player_info: ", Net.player_info)
@@ -328,79 +339,53 @@ func _build_walls_from_segments(segments: Array) -> void:
 
 # ---------------------------------------------------------------------------
 # Spawn tanks
+#
+# Tanks are routed through a MultiplayerSpawner (see $TankSpawner in
+# main.tscn, plus _spawn_tank below). Without the spawner, Godot 4.6's
+# MultiplayerSynchronizer never actually delivers position/HP deltas
+# between peers — public_visibility=true and explicit set_visibility_for
+# both turn out to be insufficient for manually-added nodes. The spawner
+# performs the SceneMultiplayer registration that makes synchronizers
+# tied to spawned nodes actually replicate; that's why bullets, ammo
+# pickups, and health pickups (all under spawners) have always synced.
 # ---------------------------------------------------------------------------
 func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 	print("[ARENA] _do_spawn_multiplayer on peer ", Net.my_id(), " slots=", peer_slots)
-	var my_id := Net.my_id()
+	var expected_tank_count: int = peer_slots.size() + ai_list.size()
 
-	var peers := peer_slots.keys()
-	peers.sort()
-	for peer_id in peers:
-		var s: int = peer_slots[peer_id]
-		var is_mine: bool = (peer_id == my_id)
-		var tank := _create_tank(s, is_mine, peer_id)
-		tank.name = "Tank_%d" % peer_id
-		add_child(tank)
-		# Only override authority when it differs from the scene default (1).
-		# In production builds (Godot 4.6), calling set_multiplayer_authority
-		# on a MultiplayerSynchronizer that was *already* correctly authoritative
-		# silently disables its broadcast — we lost the host's MovementSync
-		# this way both before AND after add_child. Solution: leave host-owned
-		# tanks (peer_id == 1) completely untouched so the scene's default
-		# authority of 1 stays in place. Only guest tanks need an override:
-		# the owning peer drives MovementSync; CombatSync stays at the host
-		# via the scene default.
-		if peer_id != 1:
-			tank.set_multiplayer_authority(peer_id, false)  # non-recursive
-			tank.get_node("MovementSync").set_multiplayer_authority(peer_id)
-			# CombatSync stays at the scene default (auth=1, host).
-		_mark_synchronizers_visible(tank)
-		DebugLog.l("spawned %s | tank.auth=%d MovementSync.auth=%d CombatSync.auth=%d is_authority=%s" % [
-			tank.name,
-			tank.get_multiplayer_authority(),
-			tank.get_node("MovementSync").get_multiplayer_authority(),
-			tank.get_node("CombatSync").get_multiplayer_authority(),
-			str(tank.is_multiplayer_authority()),
+	if Net.is_host():
+		# Host fires the spawner once per tank. _spawn_tank runs on every
+		# peer (host immediately via call-local, guests once the spawn
+		# message arrives over the wire), so each peer ends up with a
+		# fully configured instance plus the spawner registration that
+		# makes delta sync work.
+		var peers := peer_slots.keys()
+		peers.sort()
+		for peer_id in peers:
+			_tank_spawner.spawn({
+				"slot": peer_slots[peer_id],
+				"peer_id": peer_id,
+				"is_ai": false,
+				"ai_index": -1,
+			})
+		var ai_start: int = peer_slots.size()
+		for i in range(ai_list.size()):
+			_tank_spawner.spawn({
+				"slot": ai_start + i,
+				"peer_id": 1,
+				"is_ai": true,
+				"ai_index": i,
+			})
+
+	# All peers wait for every tank to materialize through the spawner.
+	# 10s deadline guards against a stuck spawn so we don't hang forever.
+	var deadline_ms: int = Time.get_ticks_msec() + 10000
+	while _tanks.size() < expected_tank_count and Time.get_ticks_msec() < deadline_ms:
+		await get_tree().process_frame
+	if _tanks.size() < expected_tank_count:
+		push_warning("[ARENA] tank spawn timeout: have %d / expected %d" % [
+			_tanks.size(), expected_tank_count
 		])
-		_tanks.append(tank)
-
-	var ai_start: int = peer_slots.size()
-	for i in range(ai_list.size()):
-		var s: int = ai_start + i
-		var tank := _create_tank(s, false, 1)
-		tank.name = "Tank_AI_%d" % i
-		tank.control_mode = tank.ControlMode.AI
-		add_child(tank)
-		# AI tanks are host-owned. Scene default (auth=1) is already correct
-		# for every node, so don't touch authority — same reason as above.
-		_mark_synchronizers_visible(tank)
-
-		if Net.is_host():
-			var ai_entry: Dictionary = ai_list[i]
-			var ai := AI_SCRIPT.new()
-			ai.difficulty = ai_entry.get("difficulty", 1)
-			tank.add_child(ai)
-
-		_tanks.append(tank)
-
-
-# Manually flips per-peer visibility to true on each MultiplayerSynchronizer
-# attached to the tank. Without this the host's tank never broadcasts —
-# Godot 4.6's MultiplayerSynchronizer keeps per-peer visibility at false for
-# nodes that were *not* spawned through a MultiplayerSpawner, even when
-# `public_visibility=true`. The spawner does this implicitly as part of its
-# spawn replication; our tanks are added with bare add_child, so we have to
-# do it ourselves. Confirmed via the debug log: pre-fix `get_visibility_for
-# (<guest_peer>)` returned false on the host's Tank_1 MovementSync despite
-# public_visibility=true, which is why no position deltas ever left the host.
-func _mark_synchronizers_visible(tank: Node) -> void:
-	var peers: Array = multiplayer.get_peers()
-	if peers.is_empty():
-		return
-	for child in tank.get_children():
-		if child is MultiplayerSynchronizer:
-			for pid in peers:
-				child.set_visibility_for(pid, true)
 
 	_alive = _tanks.size()
 
@@ -408,9 +393,59 @@ func _mark_synchronizers_visible(tank: Node) -> void:
 		_connect_death_signals()
 		_spawn_all_pickups()
 
-	# Every peer attaches its own listener to its own player tank.
+	# Every peer attaches its own audio listener to its own player tank.
 	_attach_audio_listener()
 	Audio.play_sfx("match_go")
+
+
+# Spawn function for $TankSpawner. The spawner calls this on every peer
+# with the same data dictionary, then adds the returned node to its
+# spawn_path (which is the arena root). Authority is set BEFORE return
+# so the synchronizers see the correct value the moment they enter the
+# tree.
+func _spawn_tank(data: Dictionary) -> Node:
+	var slot: int = int(data.get("slot", 0))
+	var peer_id: int = int(data.get("peer_id", 1))
+	var is_ai: bool = bool(data.get("is_ai", false))
+	var ai_index: int = int(data.get("ai_index", -1))
+
+	var my_id: int = multiplayer.get_unique_id() if Net.is_active() else 0
+	var is_mine: bool = (not is_ai) and Net.is_active() and (peer_id == my_id)
+
+	var tank: CharacterBody2D = _create_tank(slot, is_mine, peer_id)
+	if is_ai:
+		tank.name = "Tank_AI_%d" % ai_index
+		tank.control_mode = tank.ControlMode.AI
+	else:
+		tank.name = "Tank_%d" % peer_id
+
+	# Host-owned tanks (peer_id == 1, including AI) keep the scene default
+	# authority of 1 across every node — see the long comment above the
+	# function header for why we never touch a synchronizer that's already
+	# correctly authoritative. Guest-owned tanks override the tank itself
+	# plus MovementSync; CombatSync stays at the scene default (host=1).
+	if peer_id != 1:
+		tank.set_multiplayer_authority(peer_id, false)
+		tank.get_node("MovementSync").set_multiplayer_authority(peer_id)
+
+	# Only the host runs AI logic. Attach the AI controller before the
+	# spawner adds the tank to the tree; the AI script becomes a child of
+	# the (still out-of-tree) tank and joins the tree alongside it.
+	if Net.is_host() and is_ai and ai_index >= 0 and ai_index < GameConfig.ai_list.size():
+		var ai_entry: Dictionary = GameConfig.ai_list[ai_index]
+		var ai := AI_SCRIPT.new()
+		ai.difficulty = ai_entry.get("difficulty", 1)
+		tank.add_child(ai)
+
+	_tanks.append(tank)
+	DebugLog.l("spawned %s | tank.auth=%d MovementSync.auth=%d CombatSync.auth=%d is_authority=%s" % [
+		tank.name,
+		tank.get_multiplayer_authority(),
+		tank.get_node("MovementSync").get_multiplayer_authority(),
+		tank.get_node("CombatSync").get_multiplayer_authority(),
+		str(tank.is_multiplayer_authority()),
+	])
+	return tank
 
 
 # ---------------------------------------------------------------------------

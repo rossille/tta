@@ -236,6 +236,26 @@
         After the first run, launch the game any time with <strong>&#8984;Space &rarr; TankArena</strong>
         or from Launchpad.
       </p>
+    </div>
+
+    <div class="install-block">
+      <div class="install-block__header">
+        <span class="install-block__title">Linux one-liner</span>
+      </div>
+      <p class="install-block__desc">
+        Paste into a terminal. Downloads the latest build to
+        <code>~/Applications/TankArena</code>, marks it executable, and launches it.
+      </p>
+
+      <div class="install-cmd">
+        <button class="install-cmd__copy" type="button" data-target="install-cmd-linux" aria-label="Copy command">Copy</button>
+        <pre><code id="install-cmd-linux">mkdir -p ~/Applications && curl -fL -o ~/Applications/TankArena https://github.com/rossille/tta/releases/latest/download/TankArena.x86_64 && chmod +x ~/Applications/TankArena && ~/Applications/TankArena</code></pre>
+      </div>
+
+      <p class="install-block__after">
+        After the first run, launch the game any time with
+        <code>~/Applications/TankArena</code> from a terminal.
+      </p>
 
       <details class="install-block__fallback">
         <summary>Already downloaded the .dmg? &nbsp;Or prefer the GUI?</summary>

@@ -94,6 +94,10 @@ shape = SubResource("Shape_right")
 
 [node name="Walls" type="Node2D" parent="."]
 
+[node name="TankSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://scenes/tank.tscn")
+spawn_path = NodePath("..")
+
 [node name="BulletSpawner" type="MultiplayerSpawner" parent="."]
 _spawnable_scenes = PackedStringArray("res://scenes/bullet.tscn")
 spawn_path = NodePath("..")
