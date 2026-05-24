@@ -228,7 +228,7 @@ theme_override_constants/separation = 6
 
 [node name="JoinBtn" type="TextureButton" parent="PanelMain/Layout/Footer/BottomRow"]
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 84)
+custom_minimum_size = Vector2(0, 39)
 texture_normal = ExtResource("4_btn_n")
 stretch_mode = 0
 ignore_texture_size = true
@@ -240,14 +240,15 @@ anchor_bottom = 1.0
 text = "JOIN LAN GAME"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 13
 theme_override_colors/font_color = Color(0.839, 0.812, 0.706, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
 
 [node name="WindowBtn" type="TextureButton" parent="PanelMain/Layout/Footer/BottomRow"]
-custom_minimum_size = Vector2(80, 84)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 39)
 texture_normal = ExtResource("4_btn_n")
 stretch_mode = 0
 ignore_texture_size = true
@@ -256,17 +257,18 @@ ignore_texture_size = true
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-text = "⊞"
+text = "TOGGLE FULLSCREEN"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 13
 theme_override_colors/font_color = Color(0.839, 0.812, 0.706, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
 
 [node name="QuitBtn" type="TextureButton" parent="PanelMain/Layout/Footer/BottomRow"]
-custom_minimum_size = Vector2(80, 84)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 39)
 texture_normal = ExtResource("4_btn_n")
 stretch_mode = 0
 ignore_texture_size = true

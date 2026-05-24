@@ -55,7 +55,7 @@ func _ready() -> void:
 	ICON_AI     = load("res://assets/icon_ai.png")
 
 	_show_panel(_panel_main)
-	_window_btn_label.text = "⊞"
+	_window_btn_label.text = "TOGGLE FULLSCREEN"
 
 	Net.peer_connected.connect(_on_peer_connected)
 	Net.peer_disconnected.connect(_on_peer_disconnected)
@@ -393,6 +393,7 @@ func _wire_button_effects(button: TextureButton) -> void:
 
 func _btn_set_hover(button: TextureButton, hovering: bool) -> void:
 	button.set_meta("hovering", hovering)
+	Audio.play_ui("hover")
 	_btn_update_visual(button, _BTN_HOVER_DUR)
 
 
