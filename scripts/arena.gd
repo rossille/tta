@@ -354,6 +354,7 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 			tank.set_multiplayer_authority(peer_id, false)  # non-recursive
 			tank.get_node("MovementSync").set_multiplayer_authority(peer_id)
 			# CombatSync stays at the scene default (auth=1, host).
+		_mark_synchronizers_visible(tank)
 		DebugLog.l("spawned %s | tank.auth=%d MovementSync.auth=%d CombatSync.auth=%d is_authority=%s" % [
 			tank.name,
 			tank.get_multiplayer_authority(),
@@ -372,6 +373,7 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 		add_child(tank)
 		# AI tanks are host-owned. Scene default (auth=1) is already correct
 		# for every node, so don't touch authority — same reason as above.
+		_mark_synchronizers_visible(tank)
 
 		if Net.is_host():
 			var ai_entry: Dictionary = ai_list[i]
@@ -380,6 +382,25 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 			tank.add_child(ai)
 
 		_tanks.append(tank)
+
+
+# Manually flips per-peer visibility to true on each MultiplayerSynchronizer
+# attached to the tank. Without this the host's tank never broadcasts —
+# Godot 4.6's MultiplayerSynchronizer keeps per-peer visibility at false for
+# nodes that were *not* spawned through a MultiplayerSpawner, even when
+# `public_visibility=true`. The spawner does this implicitly as part of its
+# spawn replication; our tanks are added with bare add_child, so we have to
+# do it ourselves. Confirmed via the debug log: pre-fix `get_visibility_for
+# (<guest_peer>)` returned false on the host's Tank_1 MovementSync despite
+# public_visibility=true, which is why no position deltas ever left the host.
+func _mark_synchronizers_visible(tank: Node) -> void:
+	var peers: Array = multiplayer.get_peers()
+	if peers.is_empty():
+		return
+	for child in tank.get_children():
+		if child is MultiplayerSynchronizer:
+			for pid in peers:
+				child.set_visibility_for(pid, true)
 
 	_alive = _tanks.size()
 
