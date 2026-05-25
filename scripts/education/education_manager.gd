@@ -24,6 +24,10 @@
 
 extends Node
 
+## Emitted when a revival quiz ends (whether the player answered correctly
+## or not). arena._check_win() awaits this before declaring the winner.
+signal revival_resolved
+
 enum State {
 	DISABLED,        # Feature off (toggle, or not in solo)
 	IDLE,            # Counting down to next session
@@ -296,6 +300,7 @@ func _on_revival_correct() -> void:
 		_revival_tank.revive()
 	_revival_tank = null
 	_overlay.hide_all()
+	revival_resolved.emit()
 	await get_tree().create_timer(1.0).timeout
 	get_tree().paused = false
 	_enter_idle()
@@ -306,4 +311,5 @@ func _on_revival_wrong() -> void:
 	_revival_tank = null
 	_overlay.hide_all()
 	get_tree().paused = false
+	revival_resolved.emit()
 	_enter_idle()

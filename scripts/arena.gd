@@ -718,8 +718,14 @@ func _check_win() -> void:
 		return
 	await get_tree().create_timer(3.0).timeout
 
-	# A revival quiz may have run during the 3-second wait and brought a tank
-	# back to life. Re-count the living tanks instead of trusting _alive.
+	# If a revival quiz is currently open, wait for it to resolve before
+	# deciding whether the match is over. The player may still answer
+	# correctly and come back to life during the 3-second window.
+	var mgr: Node = get_node_or_null("EducationManager")
+	if mgr != null and mgr.get("_state") == mgr.State.REVIVAL_QUIZ:
+		await mgr.revival_resolved
+
+	# Re-count living tanks: a revival may have happened.
 	var living: Array = []
 	for t in _tanks:
 		if is_instance_valid(t) and not t._dead:
