@@ -24,7 +24,10 @@ const MULTIPLIER_MAX: int = 10
 ## How many distinct equations are shown in each "learn" overlay.
 const EQUATIONS_PER_SESSION: int = 3
 
-## Seconds of gameplay between two educational sessions.
+## Seconds before the very first educational session after match start.
+const FIRST_SESSION_DELAY: float = 15.0
+
+## Seconds of gameplay between subsequent educational sessions.
 ## Timer only advances when the game is NOT paused — so opening the
 ## pause menu doesn't bring the overlay sooner.
 const SESSION_INTERVAL: float = 30.0

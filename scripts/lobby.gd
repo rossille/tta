@@ -77,6 +77,11 @@ func _ready() -> void:
 	]:
 		_wire_button_effects(btn)
 
+	# Populate the AI list from GameConfig immediately so any AIs carried
+	# over from a previous match (via GameConfig.ai_list) appear at once,
+	# independently of whether Net.host() succeeds below.
+	_refresh_ai_list()
+
 	_start_hosting()
 
 
@@ -98,6 +103,9 @@ func _show_panel(panel: Control) -> void:
 # Hosting
 # ---------------------------------------------------------------------------
 func _start_hosting() -> void:
+	# Disconnect any previous session (e.g. returning from the arena) so the
+	# port is free before we try to create a new server.
+	Net.disconnect_net()
 	var err := Net.host()
 	if err != OK:
 		push_warning("lobby: failed to start host (port in use?)")

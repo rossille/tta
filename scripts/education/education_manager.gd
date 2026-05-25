@@ -43,8 +43,10 @@ enum State {
 
 var _state: int = State.DISABLED
 var _timer: float = 0.0
+var _first_session: bool = true  # true until the first learn overlay has fired
 var _current_session: Array = []
 var _current_question: Dictionary = {}
+var _failed_question: Dictionary = {}  # question that was answered wrong; forced on retry
 var _overlay: CanvasLayer = null
 var _revival_tank: Node = null   # tank awaiting revival (REVIVAL_QUIZ state)
 
@@ -176,7 +178,9 @@ func _process(delta: float) -> void:
 			# Count gameplay seconds only.
 			if not paused:
 				_timer += delta
-				if _timer >= EducationConfig.SESSION_INTERVAL:
+				var threshold: float = EducationConfig.FIRST_SESSION_DELAY \
+					if _first_session else EducationConfig.SESSION_INTERVAL
+				if _timer >= threshold:
 					_start_learning()
 
 		State.LEARNING:
@@ -204,7 +208,7 @@ func _process(delta: float) -> void:
 			if not paused:
 				_timer += delta
 				if _timer >= EducationConfig.PENALTY_DELAY_BEFORE_RETRY:
-					_start_quiz()
+					_start_retry_quiz()
 
 
 # ---------------------------------------------------------------------------
@@ -216,6 +220,7 @@ func _enter_idle() -> void:
 
 
 func _start_learning() -> void:
+	_first_session = false
 	_current_session = MultiplicationQuiz.generate_session(
 		EducationConfig.TABLES,
 		EducationConfig.MULTIPLIER_MIN,
@@ -239,6 +244,17 @@ func _on_learn_closed() -> void:
 
 func _start_quiz() -> void:
 	_current_question = MultiplicationQuiz.pick_question(_current_session)
+	_failed_question = {}
+	_state = State.QUIZ
+	_timer = 0.0
+	_overlay.show_quiz(_current_question)
+	get_tree().paused = true
+
+
+func _start_retry_quiz() -> void:
+	# Always ask the exact question that was answered wrong.
+	_current_question = _failed_question
+	_failed_question = {}
 	_state = State.QUIZ
 	_timer = 0.0
 	_overlay.show_quiz(_current_question)
@@ -281,6 +297,7 @@ func _on_correct_answer() -> void:
 
 func _on_wrong_answer() -> void:
 	Audio.play_ui("error")
+	_failed_question = _current_question
 	_state = State.PENALTY_REVIEW
 	_timer = 0.0
 	# Re-open the learn overlay, but locked (no close button).
