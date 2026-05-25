@@ -32,6 +32,7 @@ enum State {
 	QUIZ,            # Quiz overlay open
 	PENALTY_REVIEW,  # Forced review overlay (locked)
 	PENALTY_WAITING, # Free play before retry quiz
+	REVIVAL_QUIZ,    # Player just died — answer correctly to be revived
 }
 
 @export var overlay_scene: PackedScene
@@ -41,6 +42,7 @@ var _timer: float = 0.0
 var _current_session: Array = []
 var _current_question: Dictionary = {}
 var _overlay: CanvasLayer = null
+var _revival_tank: Node = null   # tank awaiting revival (REVIVAL_QUIZ state)
 
 
 func _ready() -> void:
@@ -70,6 +72,7 @@ func _ready() -> void:
 	# Decide initial state based on current solo-ness.
 	if _is_solo_match():
 		_enter_idle()
+		_connect_death_signal()
 	else:
 		_state = State.DISABLED
 
@@ -107,6 +110,48 @@ func _force_deactivate() -> void:
 ## Disables the module for the remainder of this scene instance.
 func stop() -> void:
 	_force_deactivate()
+
+
+# ---------------------------------------------------------------------------
+# Death hook
+# ---------------------------------------------------------------------------
+func _connect_death_signal() -> void:
+	# The local player's tank is spawned after _ready, so we wait one frame
+	# for the arena to finish spawning before looking for it.
+	await get_tree().process_frame
+	var arena: Node = get_parent()
+	if arena == null or not arena.has_method("get_local_player_tank"):
+		return
+	var tank: Node = arena.call("get_local_player_tank")
+	if tank != null and tank.has_signal("died"):
+		tank.died.connect(_on_tank_died)
+
+
+func _on_tank_died(_tank: Node) -> void:
+	if _state == State.DISABLED:
+		return
+	# If the normal quiz cycle is mid-flight, suspend it by going straight
+	# to REVIVAL_QUIZ. The cycle won't resume — after a revival or a failed
+	# attempt we return to IDLE and start fresh.
+	_revival_tank = _tank
+
+	# Build a single-equation session for the revival question (no learn phase).
+	var session: Array = MultiplicationQuiz.generate_session(
+		EducationConfig.TABLES,
+		EducationConfig.MULTIPLIER_MIN,
+		EducationConfig.MULTIPLIER_MAX,
+		1
+	)
+	_current_session  = session
+	_current_question = MultiplicationQuiz.pick_question(session)
+	_state = State.REVIVAL_QUIZ
+
+	# Close any overlay that was open (e.g. normal quiz was showing).
+	# The game is already effectively over for the player (they're dead), but
+	# we still pause so the remaining tanks freeze while the question is up.
+	_overlay.hide_all()
+	_overlay.show_quiz(_current_question)
+	get_tree().paused = true
 
 
 # ---------------------------------------------------------------------------
@@ -193,12 +238,17 @@ func _start_quiz() -> void:
 
 
 func _on_quiz_answered(answer: int) -> void:
-	if _state != State.QUIZ:
-		return
-	if MultiplicationQuiz.is_correct(_current_question, answer):
-		_on_correct_answer()
-	else:
-		_on_wrong_answer()
+	match _state:
+		State.QUIZ:
+			if MultiplicationQuiz.is_correct(_current_question, answer):
+				_on_correct_answer()
+			else:
+				_on_wrong_answer()
+		State.REVIVAL_QUIZ:
+			if MultiplicationQuiz.is_correct(_current_question, answer):
+				_on_revival_correct()
+			else:
+				_on_revival_wrong()
 
 
 func _on_correct_answer() -> void:
@@ -235,3 +285,25 @@ func _end_penalty_review() -> void:
 	get_tree().paused = false
 	_state = State.PENALTY_WAITING
 	_timer = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Revival outcomes
+# ---------------------------------------------------------------------------
+func _on_revival_correct() -> void:
+	Audio.play_sfx("pickup_ammo")
+	if is_instance_valid(_revival_tank) and _revival_tank.has_method("revive"):
+		_revival_tank.revive()
+	_revival_tank = null
+	_overlay.hide_all()
+	await get_tree().create_timer(1.0).timeout
+	get_tree().paused = false
+	_enter_idle()
+
+
+func _on_revival_wrong() -> void:
+	Audio.play_ui("error")
+	_revival_tank = null
+	_overlay.hide_all()
+	get_tree().paused = false
+	_enter_idle()

@@ -106,6 +106,10 @@ const PIP_OFF:   Color  = Color(0.25, 0.25, 0.25, 1.0) # dark gray
 
 var _pip_rects: Array = []
 
+# Saved at _ready so revive() can restore the live-tank body texture.
+var _body_texture_original: Texture2D = null
+var _body_scale_original: Vector2 = Vector2.ZERO
+
 # ---------------------------------------------------------------------------
 # Audio
 # ---------------------------------------------------------------------------
@@ -126,6 +130,9 @@ func _ready() -> void:
 	_update_ammo_pips()
 	_audio_prev_pos = global_position
 	_setup_audio_loops()
+	# Snapshot the live-tank body appearance so revive() can restore it.
+	_body_texture_original = _body_sprite.texture
+	_body_scale_original   = _body_sprite.scale
 
 
 func _setup_audio_loops() -> void:
@@ -474,3 +481,30 @@ func _spawn_wreck_fire() -> void:
 	var fire: Node2D = Node2D.new()
 	fire.set_script(WRECK_FIRE_SCENE)
 	add_child(fire)   # parented to tank so it stays on the wreck
+
+
+# ---------------------------------------------------------------------------
+# Revival (educational reward)
+# ---------------------------------------------------------------------------
+## Undo death visuals and restore the tank to full health.
+## Only meaningful in solo mode — called by EducationManager on correct answer.
+func revive() -> void:
+	_dead          = false
+	_death_applied = false
+	current_hp     = max_hp
+	_update_hp_bar()
+
+	# Restore the live tank appearance
+	_hp_bar_node.visible   = true
+	_barrel_sprite.visible = true
+	_body_sprite.texture   = _body_texture_original
+	_body_sprite.scale     = _body_scale_original
+
+	# Remove wreck fire if it's still around
+	for child in get_children():
+		if child.get_script() != null and child.get_script() == WRECK_FIRE_SCENE:
+			child.queue_free()
+
+	# Re-enable physics so the tank can move again
+	set_physics_process(true)
+	set_process(true)
