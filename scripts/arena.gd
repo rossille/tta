@@ -718,6 +718,17 @@ func _check_win() -> void:
 		return
 	await get_tree().create_timer(3.0).timeout
 
+	# A revival quiz may have run during the 3-second wait and brought a tank
+	# back to life. Re-count the living tanks instead of trusting _alive.
+	var living: Array = []
+	for t in _tanks:
+		if is_instance_valid(t) and not t._dead:
+			living.append(t)
+	if living.size() > 1:
+		# More than one tank alive again — match continues.
+		_alive = living.size()
+		return
+
 	var winner_name := "Nobody"
 	var winner_tank: Node = null
 	for t in _tanks:
