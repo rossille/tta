@@ -341,8 +341,13 @@ func _random_interest_duration() -> float:
 
 
 func _find_nearest_target() -> Node:
-	var best: Node = null
-	var best_dist := INF
+	# Players are always preferred over other AIs. Within each category,
+	# pick the closest one.
+	var best_player: Node = null
+	var best_player_dist := INF
+	var best_other: Node = null
+	var best_other_dist := INF
+
 	for node in _tank.get_parent().get_children():
 		if node == _tank:
 			continue
@@ -351,10 +356,17 @@ func _find_nearest_target() -> Node:
 		if node._dead:
 			continue
 		var d: float = _tank.global_position.distance_to(node.global_position)
-		if d < best_dist:
-			best_dist = d
-			best = node
-	return best
+		var is_player: bool = node.get("control_mode") == node.ControlMode.PLAYER
+		if is_player:
+			if d < best_player_dist:
+				best_player_dist = d
+				best_player = node
+		else:
+			if d < best_other_dist:
+				best_other_dist = d
+				best_other = node
+
+	return best_player if best_player != null else best_other
 
 
 func _find_health_pickup() -> Node:
