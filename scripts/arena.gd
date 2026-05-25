@@ -129,6 +129,12 @@ func _find_local_player_tank() -> Node:
 	return null
 
 
+## Public accessor for the local player's tank, used by external systems
+## (e.g. the EducationManager). Same semantics as _find_local_player_tank.
+func get_local_player_tank() -> Node:
+	return _find_local_player_tank()
+
+
 func _attach_audio_listener() -> void:
 	var local := _find_local_player_tank()
 	if local != null:
@@ -740,6 +746,8 @@ func _check_win() -> void:
 	if not _hud.continued.is_connected(_on_continued):
 		_hud.continued.connect(_on_continued.bind(winner_tank))
 
+	_stop_education()
+
 	if Net.is_active():
 		_rpc_show_winner.rpc(winner_name)
 	else:
@@ -757,6 +765,14 @@ func _on_continued(winner_tank: Node) -> void:
 func _rpc_show_winner(winner_name: String) -> void:
 	_hud.show_winner(winner_name)
 	_play_outcome_sting(winner_name)
+
+
+# Stop the educational module when the match ends so no overlay can pop up
+# over the win/loss screen or during the post-game tank "walk-around".
+func _stop_education() -> void:
+	var mgr: Node = get_node_or_null("EducationManager")
+	if mgr != null and mgr.has_method("stop"):
+		mgr.stop()
 
 
 # Plays victory or defeat based on whether the local player won.

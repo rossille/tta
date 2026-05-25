@@ -1,0 +1,86 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/education/education_overlay.gd" id="1_edu_overlay"]
+
+[node name="EducationOverlay" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_edu_overlay")
+
+[node name="Dimmer" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.7)
+mouse_filter = 2
+
+[node name="LearnPanel" type="PanelContainer" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -220.0
+offset_right = 280.0
+offset_bottom = 220.0
+
+[node name="VBox" type="VBoxContainer" parent="LearnPanel"]
+theme_override_constants/separation = 20
+
+[node name="Title" type="Label" parent="LearnPanel/VBox"]
+text = "Apprends ces multiplications !"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 26
+
+[node name="Equation1" type="Label" parent="LearnPanel/VBox"]
+text = "3  x  4  =  12"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 44
+
+[node name="Equation2" type="Label" parent="LearnPanel/VBox"]
+text = "7  x  5  =  35"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 44
+
+[node name="Equation3" type="Label" parent="LearnPanel/VBox"]
+text = "2  x  3  =  6"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 44
+
+[node name="Spacer" type="Control" parent="LearnPanel/VBox"]
+custom_minimum_size = Vector2(0, 8)
+
+[node name="CloseBtn" type="Button" parent="LearnPanel/VBox"]
+custom_minimum_size = Vector2(0, 48)
+text = "OK, j'ai compris !"
+theme_override_font_sizes/font_size = 20
+
+[node name="ForcedNotice" type="Label" parent="LearnPanel/VBox"]
+text = "Memorise bien ces calculs..."
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 18
+visible = false
+
+[node name="QuizPanel" type="PanelContainer" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -320.0
+offset_top = -290.0
+offset_right = 320.0
+offset_bottom = 290.0
+
+[node name="VBox" type="VBoxContainer" parent="QuizPanel"]
+theme_override_constants/separation = 16
+
+[node name="QuestionLabel" type="Label" parent="QuizPanel/VBox"]
+text = "7  x  5  =  ?"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 44
+
+[node name="Grid" type="GridContainer" parent="QuizPanel/VBox"]
+columns = 10
+theme_override_constants/h_separation = 3
+theme_override_constants/v_separation = 3

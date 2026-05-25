@@ -24,6 +24,7 @@ config/icon="res://icon.png"
 
 TankConfig="*res://config/tank_config.gd"
 GameConfig="*res://config/game_config.gd"
+EducationConfig="*res://config/education_config.gd"
 WindowManager="*res://scripts/window_manager.gd"
 Net="*res://scripts/net.gd"
 LanDiscovery="*res://scripts/lan_discovery.gd"
