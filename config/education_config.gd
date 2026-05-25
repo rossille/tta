@@ -2,16 +2,26 @@
 # Optional educational module: teach multiplication tables to a child during
 # gameplay. Activates only in real solo (host + zero connected guests).
 #
-# To turn the whole feature off (no overlays, no timers, no ammo bonus),
-# set ENABLED to false here. Nothing else needs to change.
+# Master switch — two ways to disable:
+#   1. Set ENABLED = false below (code-level default).
+#   2. Launch with EDU=off in the environment:
+#        EDU=off ./TankArena   (or set it in your shell before running)
+#      Any value other than "off" (case-insensitive) keeps the module on.
 #
 # Registered as the "EducationConfig" autoload singleton in project.godot,
 # which makes EducationConfig.CONSTANT_NAME available globally.
 
 extends Node
 
-## Master switch. Set to false to completely disable the educational module.
-const ENABLED: bool = true
+## Master switch. Overridden at runtime by the EDU environment variable.
+## EDU=off  → disabled regardless of this value.
+## EDU=<anything else> or unset → uses this value.
+var ENABLED: bool = true
+
+func _ready() -> void:
+	var env: String = OS.get_environment("EDU").strip_edges().to_lower()
+	if env == "off":
+		ENABLED = false
 
 ## Multiplication tables the child practices.
 ## Add 6, 7, ... here as the child progresses.
