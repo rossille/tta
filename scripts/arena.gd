@@ -168,6 +168,7 @@ func _spawn_solo() -> void:
 	_connect_death_signals()
 	_spawn_all_pickups()
 	_attach_audio_listener()
+	_register_player_tank_with_education()
 	Audio.play_sfx("match_go")
 
 
@@ -790,6 +791,15 @@ func _stop_education() -> void:
 	var mgr: Node = get_node_or_null("EducationManager")
 	if mgr != null and mgr.has_method("stop"):
 		mgr.stop()
+
+
+func _register_player_tank_with_education() -> void:
+	var mgr: Node = get_node_or_null("EducationManager")
+	if mgr == null or not mgr.has_method("register_player_tank"):
+		return
+	var tank: Node = _find_local_player_tank()
+	if tank != null:
+		mgr.register_player_tank(tank)
 
 
 # Plays victory or defeat based on whether the local player won.

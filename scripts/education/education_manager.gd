@@ -76,7 +76,8 @@ func _ready() -> void:
 	# Decide initial state based on current solo-ness.
 	if _is_solo_match():
 		_enter_idle()
-		_connect_death_signal()
+		# Death signal is connected later by arena via register_player_tank(),
+		# once the tank is actually spawned.
 	else:
 		_state = State.DISABLED
 
@@ -119,15 +120,13 @@ func stop() -> void:
 # ---------------------------------------------------------------------------
 # Death hook
 # ---------------------------------------------------------------------------
-func _connect_death_signal() -> void:
-	# The local player's tank is spawned after _ready, so we wait one frame
-	# for the arena to finish spawning before looking for it.
-	await get_tree().process_frame
-	var arena: Node = get_parent()
-	if arena == null or not arena.has_method("get_local_player_tank"):
+
+## Called by arena._register_player_tank_with_education() right after spawn,
+## once the local player's tank node is guaranteed to exist.
+func register_player_tank(tank: Node) -> void:
+	if _state == State.DISABLED:
 		return
-	var tank: Node = arena.call("get_local_player_tank")
-	if tank != null and tank.has_signal("died"):
+	if tank.has_signal("died") and not tank.died.is_connected(_on_tank_died):
 		tank.died.connect(_on_tank_died)
 
 
