@@ -27,8 +27,9 @@ func _ready() -> void:
 ## Add 6, 7, ... here as the child progresses.
 const TABLES: Array = [3, 4, 5]
 
-## Range of the right-hand multiplier (e.g. [1, 10] => 3x1 .. 3x10).
-const MULTIPLIER_MIN: int = 1
+## Range of the right-hand multiplier (e.g. [2, 10] => 3x2 .. 3x10).
+## Starts at 2 — multiplying by 1 is trivial and wastes learning opportunity.
+const MULTIPLIER_MIN: int = 2
 const MULTIPLIER_MAX: int = 10
 
 ## How many distinct equations are shown in each "learn" overlay.
