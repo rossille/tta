@@ -399,6 +399,7 @@ func _do_spawn_multiplayer(peer_slots: Dictionary, ai_list: Array) -> void:
 	if Net.is_host():
 		_connect_death_signals()
 		_spawn_all_pickups()
+		_register_player_tank_with_education()
 
 	# Every peer attaches its own audio listener to its own player tank.
 	_attach_audio_listener()

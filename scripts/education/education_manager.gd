@@ -74,6 +74,11 @@ func _ready() -> void:
 	Net.peer_connected.connect(_on_peer_connected)
 
 	# Decide initial state based on current solo-ness.
+	# Decide initial state based on current solo-ness.
+	# NOTE: we always start in IDLE here; register_player_tank() will be
+	# called by the arena once the tank is spawned regardless of solo check,
+	# so the solo check at that point (in register_player_tank) is the
+	# authoritative gate.
 	if _is_solo_match():
 		_enter_idle()
 		# Death signal is connected later by arena via register_player_tank(),
