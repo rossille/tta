@@ -18,6 +18,9 @@ signal quiz_answered(answer: int)
 @onready var _dimmer:      ColorRect = $Dimmer
 @onready var _learn_panel: Control   = $LearnPanel
 @onready var _quiz_panel:  Control   = $QuizPanel
+@onready var _answer_panel:    Control = $AnswerPanel
+@onready var _answer_label:    Label   = $AnswerPanel/VBox/AnswerLabel
+@onready var _countdown_label: Label   = $AnswerPanel/VBox/CountdownLabel
 @onready var _equation_labels: Array = [
 	$LearnPanel/VBox/Equation1,
 	$LearnPanel/VBox/Equation2,
@@ -40,6 +43,7 @@ func _ready() -> void:
 	_dimmer.visible = false
 	_learn_panel.visible = false
 	_quiz_panel.visible = false
+	_answer_panel.visible = false
 	_close_btn.pressed.connect(_on_close_pressed)
 	_build_grid()
 
@@ -89,11 +93,30 @@ func show_quiz(question: Dictionary) -> void:
 	Cursor.show_cursor()
 
 
+## Show the correct answer after a failed revival quiz.
+##   equation: the question dict (a, b, result)
+##   seconds_left: countdown value to display (updated each second by the manager)
+func show_answer(equation: Dictionary, seconds_left: int) -> void:
+	_answer_label.text = "%d  x  %d  =  %d" % [equation.a, equation.b, equation.result]
+	_countdown_label.text = str(seconds_left)
+	_dimmer.visible = true
+	_answer_panel.visible = true
+	_learn_panel.visible = false
+	_quiz_panel.visible = false
+	Cursor.show_cursor()
+
+
+## Update the countdown number shown on the answer panel.
+func update_answer_countdown(seconds_left: int) -> void:
+	_countdown_label.text = str(seconds_left)
+
+
 ## Hide both panels (game returns to gameplay).
 func hide_all() -> void:
 	_dimmer.visible = false
 	_learn_panel.visible = false
 	_quiz_panel.visible = false
+	_answer_panel.visible = false
 	Cursor.hide_cursor()
 
 

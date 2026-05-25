@@ -330,6 +330,13 @@ func _on_revival_correct() -> void:
 func _on_revival_wrong() -> void:
 	Audio.play_ui("error")
 	_revival_tank = null
+	# Show the correct answer for 8 seconds (game stays paused, no close button).
+	var secs: int = 8
+	_overlay.show_answer(_current_question, secs)
+	while secs > 0:
+		await get_tree().create_timer(1.0).timeout
+		secs -= 1
+		_overlay.update_answer_countdown(secs)
 	_overlay.hide_all()
 	get_tree().paused = false
 	revival_resolved.emit()

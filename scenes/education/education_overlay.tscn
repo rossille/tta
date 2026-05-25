@@ -84,3 +84,34 @@ theme_override_font_sizes/font_size = 44
 columns = 10
 theme_override_constants/h_separation = 3
 theme_override_constants/v_separation = 3
+
+[node name="AnswerPanel" type="PanelContainer" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -160.0
+offset_right = 280.0
+offset_bottom = 160.0
+
+[node name="VBox" type="VBoxContainer" parent="AnswerPanel"]
+theme_override_constants/separation = 24
+
+[node name="Title" type="Label" parent="AnswerPanel/VBox"]
+text = "La bonne réponse était :"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+
+[node name="AnswerLabel" type="Label" parent="AnswerPanel/VBox"]
+text = "7  x  5  =  35"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 64
+theme_override_colors/font_color = Color(1.0, 0.85, 0.1, 1.0)
+
+[node name="CountdownLabel" type="Label" parent="AnswerPanel/VBox"]
+text = "8"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1.0)
